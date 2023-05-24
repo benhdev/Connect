@@ -110,6 +110,7 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
             CreatedAt = os.date();
             CurrentCycleNo = 0;
 
+            ContextArguments = {};
             Errors = {};
             RunTimes = {};
 
@@ -124,15 +125,15 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 
             HasError = function (self)
                 return if #self.Errors > 0 then true else false
-            end,
+            end;
 
             TotalErrors = function (self)
                 return #self.Errors
-            end,
+            end;
 
             LastError = function (self)
                 return self.Errors[#self.Errors]
-            end,
+            end;
 
             CompletedCycles = function (self): number
                 return #self.RunTimes
@@ -140,6 +141,10 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 
             CurrentCycle = function (self): number
                 return self.CurrentCycleNo
+            end;
+
+            GetArguments = function (self)
+                return unpack(self.ContextArguments)
             end;
 
             Disconnect = function ()
@@ -155,6 +160,8 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 
         connection = method(signal, function (...)
             local startTime = os.clock()
+
+            proxy.ContextArguments = {...}
             proxy.CurrentCycleNo += 1
 
             local success, result = xpcall(
@@ -164,11 +171,24 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                     local endTime = os.clock()
                     table.insert(proxy.RunTimes, endTime - startTime)
 
-                    if onError then
-                        return onError(proxy, e) or e
+                    local proxy = table.clone(proxy)
+                    function proxy.ScheduleRetry (self, t: number?)
+                        task.delay(t or 5, function()
+                            self.ScheduleRetry = nil
+                            local success, result = pcall(callback, proxy, self:GetArguments())
+
+                            if not success then
+                                warn("ScheduleRetry Failed: ", result)
+                            end
+                        end)
                     end
 
-                    warn(debug.traceback(e, 2))
+                    if onError then
+                        e = onError(proxy, e) or e
+                    else
+                        warn(debug.traceback(e, 2))
+                    end
+
                     return e
                 end,
                 proxy,
