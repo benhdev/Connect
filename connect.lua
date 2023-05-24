@@ -159,6 +159,8 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 
                     if not connection.Connected and module.connections[key][uuid] then
                         module.connections[key][uuid] = nil
+
+                        -- proxy.isRunning is false, so we run the onDisconnected method here
                         if self.onDisconnected and not self.isRunning then
                             self:onDisconnected()
                         end
@@ -170,7 +172,7 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                 if connection and connection.Connected then
                     self.onDisconnected = handler
                 end
-            end,
+            end;
         } :: module
 
         connection = method(signal, function (...)
@@ -187,6 +189,10 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                     table.insert(proxy.RunTimes, endTime - startTime)
 
                     local newProxy = table.clone(proxy)
+
+                    function newProxy.onDisconnect (self)
+                        warn("Cannot set onDisconnect within an Error Handler")
+                    end
 
                     function newProxy.onError (self)
                         warn("Cannot set Error Handler within an Error Handler")
@@ -220,6 +226,7 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                 table.insert(proxy.RunTimes, endTime - startTime)
             end
 
+            -- proxy.isRunning is still true, so we run the onDisconnected method here
             if connection and not connection.Connected and proxy.onDisconnected then
                 proxy:onDisconnected()
             end
