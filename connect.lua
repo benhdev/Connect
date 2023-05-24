@@ -7,6 +7,7 @@ type array = table<number>
 type object = table<string>
 --
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local module: module = {} :: module
@@ -14,44 +15,128 @@ local module: module = {} :: module
 module.connections = {}
 module.threads = {}
 
-function module.GetArguments (self: module, ...): (any, RBXScriptSignal, (any) -> any?)
-    local key, signal, callback: (any) -> any? = ...
-    if not callback then
+function module.GetArguments (self: module, ...): (any, RBXScriptSignal, (module, ...any?) -> any?)
+    local key, signal, callback: (...any?) -> any?, onError: (...any?) -> any? = ...
+
+    if callback and not onError then
+        onError = callback
         callback = signal
         signal = key
-
+        key = "Global"
+    elseif not callback and not onError then
+        callback = signal
+        signal = key
         key = "Global"
     end
 
-    self:Validate(key, signal, callback)
+    self:Validate(key, signal, callback, onError)
 
     if not self.connections[key] then
         self.connections[key] = setmetatable({}, {__mode = "k"})
     end
 
-    return key, signal, callback :: (any) -> any?
+    return key, signal, callback :: (any) -> any?, onError :: (any) -> any?
 end
 
 function module.AddConnection (self: module, ...): module
-    local key, signal, callback = self:GetArguments(...)
-    return self:ProxyConnection(key, signal, signal.Connect, callback)
+    local key, signal, callback, onError = self:GetArguments(...)
+    return self:ProxyConnection(key, signal, signal.Connect, callback, onError)
 end
 
 function module.Parallel (self: module, ...): module
-    local key, signal, callback = self:GetArguments(...)
-    return self:ProxyConnection(key, signal, signal.ConnectParallel, callback)
+    local key, signal, callback, onError = self:GetArguments(...)
+    return self:ProxyConnection(key, signal, signal.ConnectParallel, callback, onError)
 end
 
 function module.Once (self: module, ...): module
-    local key, signal, callback = self:GetArguments(...)
-    return self:ProxyConnection(key, signal, signal.Once, callback)
+    local key, signal, callback, onError = self:GetArguments(...)
+    return self:ProxyConnection(key, signal, signal.Once, callback, onError)
 end
 
-function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback): module
+function module.GetRemoteEvent (self: module, key: string): RemoteEvent | RemoteFunction
+    local remote = ReplicatedStorage:FindFirstChild(key)
+
+    if not remote and RunService:IsServer() then
+        remote = Instance.new("RemoteEvent")
+        remote.Name = key
+        remote.Parent = ReplicatedStorage
+    end
+
+    if not remote and RunService:IsClient() then
+        remote = ReplicatedStorage:WaitForChild(key, 5)
+    end
+
+    return remote
+end
+
+function module.OnClientEvent (self: module, key: string, callback: (...any?) -> ...any?): module
+    if not RunService:IsClient() then
+        error("Only use Connect:OnClientEvent on the client!")
+    end
+
+    local key, signal, callback = self:GetArguments(self:GetRemoteEvent(key).OnClientEvent, callback)
+    return self:ProxyConnection(key, signal, signal.Connect, callback)
+end
+
+function module.FireClient (self: module, key: string, client: Player, ...: any?): ()
+    local remote = self:GetRemoteEvent(key)
+    remote:FireClient(client, ...)
+end
+
+function module.FireAllClients (self: module, key: string, ...: any?): ()
+    local remote = self:GetRemoteEvent(key)
+    remote:FireAllClients(...)
+end
+
+function module.OnServerEvent (self: module, key: string, callback: (Player, ...any?) -> ...any?): module
+    if not RunService:IsServer() then
+        error("Only use Connect:OnServerEvent on the server!")
+    end
+
+    local key, signal, callback = self:GetArguments(self:GetRemoteEvent(key).OnServerEvent, callback)
+    return self:ProxyConnection(key, signal, signal.Connect, callback)
+end
+
+function module.FireServer (self: module, key: string, ...: any?): ()
+    local remote = self:GetRemoteEvent(key)
+    remote:FireServer(...)
+end
+
+function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, onError): module
     local uuid = self:CreateUUID(key)
 
-    local proxy: module?, connection: RBXScriptConnection? = nil do
+    local proxy: module, connection: RBXScriptConnection? = nil do
         proxy = {
+            CreatedAt = os.date();
+
+            Errors = {};
+            RunTimes = {};
+
+            AverageRunTime = function (self)
+                local total = 0
+                for _,runTime in next, self.RunTimes do
+                    total += runTime
+                end
+
+                return if total == 0 then 0 else total / #self.RunTimes
+            end;
+
+            HasError = function (self)
+                return if #self.Errors > 0 then true else false
+            end,
+
+            TotalErrors = function (self)
+                return #self.Errors
+            end,
+
+            LastError = function (self)
+                return self.Errors[#self.Errors]
+            end,
+
+            TimesRan = function (self)
+                return #self.RunTimes
+            end;
+
             Disconnect = function ()
                 if connection and typeof(connection) == "RBXScriptConnection" then
                     connection:Disconnect()
@@ -64,7 +149,31 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
         } :: module
 
         connection = method(signal, function (...)
-            return callback(proxy, ...)
+            local startTime = os.clock()
+
+            local success, result = xpcall(
+                callback,
+                function (e)
+                    table.insert(proxy.Errors, e)
+                    local endTime = os.clock()
+                    table.insert(proxy.RunTimes, endTime - startTime)
+
+                    if onError then
+                        local result = onError(proxy, e)
+                        return result or e
+                    end
+
+                    warn(debug.traceback(e, 2))
+                    return e
+                end,
+                proxy,
+                ...
+            )
+
+            if success then
+                local endTime = os.clock()
+                table.insert(proxy.RunTimes, endTime - startTime)
+            end
         end)
     end
 
@@ -210,8 +319,7 @@ function module.DisconnectByKey (self: module, key: any): nil
 end
 
 function module.DisconnectGlobal (self: module): nil
-
-    return
+    return self:DisconnectByKey("Global")
 end
 
 function module.GetThread (self: module, key: string): thread?
@@ -236,7 +344,7 @@ function module.Delay (self: module, seconds: number, key: string, callback: () 
     return self:Thread(key, task.delay(seconds, callback))
 end
 
-function module.Validate(self: module, key, signal, callback)
+function module.Validate(self: module, key, signal, callback, onError)
     if not key then
         error("key invalid")
     end
@@ -247,6 +355,10 @@ function module.Validate(self: module, key, signal, callback)
 
     if not callback or typeof(callback) ~= "function" then
         error("callback invalid")
+    end
+
+    if onError and typeof(onError) ~= "function" then
+        error("Error Handler invalid")
     end
 end
 
