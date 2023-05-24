@@ -114,6 +114,8 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
             Errors = {};
             RunTimes = {};
 
+            onDisconnected = nil;
+
             AverageRunTime = function (self)
                 local total = 0
                 for _,runTime in next, self.RunTimes do
@@ -147,20 +149,33 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                 return unpack(self.ContextArguments)
             end;
 
-            Disconnect = function ()
+            onError = function(self, handler)
+                onError = handler
+            end;
+
+            Disconnect = function (self)
                 if connection and typeof(connection) == "RBXScriptConnection" then
                     connection:Disconnect()
 
                     if not connection.Connected and module.connections[key][uuid] then
                         module.connections[key][uuid] = nil
+                        if self.onDisconnected and not self.isRunning then
+                            self:onDisconnected()
+                        end
                     end
                 end
             end;
+
+            onDisconnect = function (self, handler)
+                if connection and connection.Connected then
+                    self.onDisconnected = handler
+                end
+            end,
         } :: module
 
         connection = method(signal, function (...)
             local startTime = os.clock()
-
+            proxy.isRunning = true
             proxy.ContextArguments = {...}
             proxy.CurrentCycleNo += 1
 
@@ -171,11 +186,16 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                     local endTime = os.clock()
                     table.insert(proxy.RunTimes, endTime - startTime)
 
-                    local proxy = table.clone(proxy)
-                    function proxy.ScheduleRetry (self, t: number?)
+                    local newProxy = table.clone(proxy)
+
+                    function newProxy.onError (self)
+                        warn("Cannot set Error Handler within an Error Handler")
+                    end
+
+                    function newProxy.ScheduleRetry (self, t: number?)
                         task.delay(t or 5, function()
                             self.ScheduleRetry = nil
-                            local success, result = pcall(callback, proxy, self:GetArguments())
+                            local success, result = pcall(callback, newProxy, self:GetArguments())
 
                             if not success then
                                 warn("ScheduleRetry Failed: ", result)
@@ -184,7 +204,7 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                     end
 
                     if onError then
-                        e = onError(proxy, e) or e
+                        e = onError(newProxy, e) or e
                     else
                         warn(debug.traceback(e, 2))
                     end
@@ -199,12 +219,26 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                 local endTime = os.clock()
                 table.insert(proxy.RunTimes, endTime - startTime)
             end
+
+            if connection and not connection.Connected and proxy.onDisconnected then
+                proxy:onDisconnected()
+            end
+
+            proxy.isRunning = false
         end)
     end
 
     self.connections[key][uuid] = connection
 
-    return proxy :: module
+    return setmetatable(proxy, {
+        __index = function (self, key): any?
+            if connection and string.lower(key) == "connected" then
+                return connection.Connected
+            end
+
+            return
+        end
+    }) :: module
 end
 
 function module.CreateUUID (self: module, key: any): string
@@ -411,8 +445,6 @@ end
 
 function module.Cleanup (self: module): ()
     while task.wait(30) do
-        print("Running Connect:Cleanup()")
-
         for key, connectionList in next, self.connections do
             -- check any instances were destroyed and not disconnected properly
             -- just incase /e shrug
