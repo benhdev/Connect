@@ -108,6 +108,7 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
     local proxy: module, connection: RBXScriptConnection? = nil do
         proxy = {
             CreatedAt = os.date();
+            CurrentCycleNo = 0;
 
             Errors = {};
             RunTimes = {};
@@ -133,8 +134,12 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                 return self.Errors[#self.Errors]
             end,
 
-            TimesRan = function (self)
+            CompletedCycles = function (self): number
                 return #self.RunTimes
+            end;
+
+            CurrentCycle = function (self): number
+                return self.CurrentCycleNo
             end;
 
             Disconnect = function ()
@@ -150,6 +155,7 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 
         connection = method(signal, function (...)
             local startTime = os.clock()
+            proxy.CurrentCycleNo += 1
 
             local success, result = xpcall(
                 callback,
@@ -159,8 +165,7 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                     table.insert(proxy.RunTimes, endTime - startTime)
 
                     if onError then
-                        local result = onError(proxy, e)
-                        return result or e
+                        return onError(proxy, e) or e
                     end
 
                     warn(debug.traceback(e, 2))
