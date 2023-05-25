@@ -129,7 +129,12 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
         print(debug.info(self:CallstackLevel(), "slnaf"))
     end
 
-    if debug.info(self:CallstackLevel(), "n") == "pcall" then
+    if self.onRetryScriptLine
+        and debug.info(self:CallstackLevel()-2, "n") == "pcall"
+        and debug.info(self:CallstackLevel()-0, "n") == "pcall"
+        and debug.info(self:CallstackLevel()-1, "s") == script:GetFullName()
+        and debug.info(self:CallstackLevel()-1, "l") == self.onRetryScriptLine
+    then
         -- This means its running in the ScheduleRetry functionality
         -- TODO: Figure out if connection was already established
         if self:DebugEnabled() then
@@ -268,7 +273,10 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                             self.ScheduleRetry = nil
                             self.InRetry = true
 
-                            local success, result = pcall(callback, self, self:GetArguments())
+                            local success, result = pcall(function()
+                                module.onRetryScriptLine = debug.info(1, "l") :: number + 1
+                                return pcall(callback, self, self:GetArguments())
+                            end)
 
                             if not success then
                                 local result = if self.onRetryErrorHandler
