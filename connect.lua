@@ -15,18 +15,26 @@ local module: module = {} :: module
 module.connections = {}
 module.threads = {}
 
+function module.DebugEnabled (self, v)
+    if typeof(v) == "boolean" then
+        self.DebugMode = v
+    end
+
+    return self.DebugMode
+end
+
 function module.GetArguments (self: module, ...): (any, RBXScriptSignal, (module, ...any?) -> any?)
     local key, signal, callback: (...any?) -> any?, onError: (...any?) -> any? = ...
 
-    if callback and not onError then
+    if typeof(key) == "RBXScriptSignal" then
         onError = callback
         callback = signal
         signal = key
         key = "Global"
-    elseif not callback and not onError then
-        callback = signal
-        signal = key
-        key = "Global"
+    end
+
+    if self:DebugEnabled() then
+        print(key, signal, callback, onError)
     end
 
     self:Validate(key, signal, callback, onError)
@@ -114,8 +122,6 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
             Errors = {};
             RunTimes = {};
 
-            onDisconnected = nil;
-
             AverageRunTime = function (self)
                 local total = 0
                 for _,runTime in next, self.RunTimes do
@@ -153,6 +159,10 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                 onError = handler
             end;
 
+            onRetryError = function (self, handler)
+                self.onRetryErrorHandler = handler
+            end;
+
             Disconnect = function (self)
                 if connection and typeof(connection) == "RBXScriptConnection" then
                     connection:Disconnect()
@@ -160,17 +170,24 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                     if not connection.Connected and module.connections[key][uuid] then
                         module.connections[key][uuid] = nil
 
-                        -- proxy.isRunning is false, so we run the onDisconnected method here
-                        if self.onDisconnected and not self.isRunning then
-                            self:onDisconnected()
+                        -- proxy.isRunning is false, so we run the onDisconnectHandler method here
+                        if self.onDisconnectHandler and not self.isRunning and not self.HasDisconnected then
+                            self:onDisconnectHandler()
                         end
                     end
                 end
             end;
 
+            onDisconnectHandler = function (self)
+                self.HasDisconnected = true
+                if self.onDisconnectHandlerCallback then
+                    self:onDisconnectHandlerCallback()
+                end
+            end;
+
             onDisconnect = function (self, handler)
                 if connection and connection.Connected then
-                    self.onDisconnected = handler
+                    self.onDisconnectHandlerCallback = handler
                 end
             end;
         } :: module
@@ -198,13 +215,24 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                         warn("Cannot set Error Handler within an Error Handler")
                     end
 
+                    function newProxy.onRetryError (self, handler)
+                        warn("Cannot set Retry Error Handler within an Error Handler")
+                    end
+
                     function newProxy.ScheduleRetry (self, t: number?)
                         task.delay(t or 5, function()
                             self.ScheduleRetry = nil
-                            local success, result = pcall(callback, newProxy, self:GetArguments())
+                            local success, result = pcall(callback, self, self:GetArguments())
 
                             if not success then
-                                warn("ScheduleRetry Failed: ", result)
+                                local result = if self.onRetryErrorHandler
+                                    then self:onRetryErrorHandler(result)
+                                    else warn("ScheduleRetry Failed: ", result)
+
+                                -- proxy.isRunning is still true, so we run the onDisconnectHandler method here
+                                if connection and not connection.Connected and proxy.onDisconnectHandler and not proxy.HasDisconnected then
+                                    proxy:onDisconnectHandler()
+                                end
                             end
                         end)
                     end
@@ -226,9 +254,9 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                 table.insert(proxy.RunTimes, endTime - startTime)
             end
 
-            -- proxy.isRunning is still true, so we run the onDisconnected method here
-            if connection and not connection.Connected and proxy.onDisconnected then
-                proxy:onDisconnected()
+            -- proxy.isRunning is still true, so we run the onDisconnectHandler method here
+            if connection and not connection.Connected and proxy.onDisconnectHandler and not proxy.HasDisconnected then
+                proxy:onDisconnectHandler()
             end
 
             proxy.isRunning = false
