@@ -48,7 +48,7 @@ function module.GetArguments (self: module, ...): (any, RBXScriptSignal, (module
     end
 
     if self:DebugEnabled() then
-        print(key, signal, callback, onError)
+        --print(key, signal, callback, onError)
     end
 
     self:Validate(key, signal, callback, onError)
@@ -124,9 +124,9 @@ function module.FireServer (self: module, key: string, ...: any?): ()
     remote:FireServer(...)
 end
 
-function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, onError): module?
+function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, onError): any?
     if self:DebugEnabled() then
-        print(debug.info(self:CallstackLevel(), "slnaf"))
+        --print(debug.info(self:CallstackLevel(), "slnaf"))
     end
 
     if debug.info(self:CallstackLevel(), "n") == "pcall" then
@@ -136,7 +136,13 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
             warn("Exiting AddConnection - within ScheduleRetry")
         end
 
-        return
+        return setmetatable({}, {
+            __index = function (self, k)
+                return function ()
+                    return self
+                end
+            end,
+        })
     end
 
     local uuid = self:CreateUUID(key)
