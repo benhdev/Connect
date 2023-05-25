@@ -224,7 +224,7 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
             onDisconnectHandler = function (self)
                 self.HasDisconnected = true
 
-                if connection and not connection.Connected and module.connections[key][uuid] then
+                if connection and not connection.Connected and module.connections[key] and module.connections[key][uuid] then
                     -- fail safe
                     module.connections[key][uuid] = nil
                 end
