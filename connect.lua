@@ -218,6 +218,12 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 
             onDisconnectHandler = function (self)
                 self.HasDisconnected = true
+
+                if connection and not connection.Connected and module.connections[key][uuid] then
+                    -- fail safe
+                    module.connections[key][uuid] = nil
+                end
+
                 if self.onDisconnectHandlerCallback then
                     self:onDisconnectHandlerCallback()
                 end
@@ -496,9 +502,9 @@ function module.Validate(self: module, key, signal, callback, onError)
     end
 end
 
-function module.Counter (self: module, key: string?)
+function module.Counter (self: module, t: number?, key: string?)
     task.spawn(function ()
-        while task.wait(5) do
+        while task.wait(t or 5) do
             local counter = 0
 
             if not key then
