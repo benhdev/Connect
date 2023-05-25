@@ -126,7 +126,8 @@ end
 
 function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, onError): any?
     if self:DebugEnabled() == "internal" then
-        print(debug.info(self:CallstackLevel(), "slnaf"))
+        print('----------')
+        print(self:CallstackLevel(), debug.info(self:CallstackLevel(), "slnaf"))
     end
 
     if self.onRetryScriptLine
@@ -137,7 +138,7 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
     then
         -- This means its running in the ScheduleRetry functionality
         -- TODO: Figure out if connection was already established
-        if self:DebugEnabled() then
+        if self:DebugEnabled() == "internal" then
             warn("Exiting AddConnection - within ScheduleRetry")
         end
 
