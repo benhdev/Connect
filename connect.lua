@@ -23,6 +23,20 @@ function module.DebugEnabled (self, v)
     return self.DebugMode
 end
 
+function module.CallstackLevel (self)
+    local depth = 0
+
+    while true do
+        if not debug.info(3 + depth, "n") then
+            break
+        end
+
+        depth += 1
+    end
+
+    return depth
+end
+
 function module.GetArguments (self: module, ...): (any, RBXScriptSignal, (module, ...any?) -> any?)
     local key, signal, callback: (...any?) -> any?, onError: (...any?) -> any? = ...
 
@@ -46,7 +60,7 @@ function module.GetArguments (self: module, ...): (any, RBXScriptSignal, (module
     return key, signal, callback :: (any) -> any?, onError :: (any) -> any?
 end
 
-function module.AddConnection (self: module, ...): module
+function module.AddConnection (self: module, ...): module?
     local key, signal, callback, onError = self:GetArguments(...)
     return self:ProxyConnection(key, signal, signal.Connect, callback, onError)
 end
@@ -110,7 +124,21 @@ function module.FireServer (self: module, key: string, ...: any?): ()
     remote:FireServer(...)
 end
 
-function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, onError): module
+function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, onError): module?
+    if self:DebugEnabled() then
+        print(debug.info(self:CallstackLevel(), "slnaf"))
+    end
+
+    if debug.info(self:CallstackLevel(), "n") == "pcall" then
+        -- This means its running in the ScheduleRetry functionality
+        -- TODO: Figure out if connection was already established
+        if self:DebugEnabled() then
+            warn("Exiting AddConnection - within ScheduleRetry")
+        end
+
+        return
+    end
+
     local uuid = self:CreateUUID(key)
 
     local proxy: module, connection: RBXScriptConnection? = nil do
@@ -141,6 +169,10 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 
             LastError = function (self)
                 return self.Errors[#self.Errors]
+            end;
+
+            IsRetrying = function (self)
+                return self.InRetry or false
             end;
 
             CompletedCycles = function (self): number
@@ -222,6 +254,8 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                     function newProxy.ScheduleRetry (self, t: number?)
                         task.delay(t or 5, function()
                             self.ScheduleRetry = nil
+                            self.InRetry = true
+
                             local success, result = pcall(callback, self, self:GetArguments())
 
                             if not success then
