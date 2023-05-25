@@ -16,7 +16,7 @@ module.connections = {}
 module.threads = {}
 
 function module.DebugEnabled (self, v)
-    if typeof(v) == "boolean" then
+    if typeof(v) == "boolean" or typeof(v) == "string" then
         self.DebugMode = v
     end
 
@@ -47,8 +47,8 @@ function module.GetArguments (self: module, ...): (any, RBXScriptSignal, (module
         key = "Global"
     end
 
-    if self:DebugEnabled() then
-        --print(key, signal, callback, onError)
+    if self:DebugEnabled() == "internal" then
+        print(key, signal, callback, onError)
     end
 
     self:Validate(key, signal, callback, onError)
@@ -125,8 +125,8 @@ function module.FireServer (self: module, key: string, ...: any?): ()
 end
 
 function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, onError): any?
-    if self:DebugEnabled() then
-        --print(debug.info(self:CallstackLevel(), "slnaf"))
+    if self:DebugEnabled() == "internal" then
+        print(debug.info(self:CallstackLevel(), "slnaf"))
     end
 
     if debug.info(self:CallstackLevel(), "n") == "pcall" then
