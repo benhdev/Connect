@@ -62,6 +62,11 @@ Available methods on the `self` object within callbacks for `Connect`, `onError`
 > self:GetArguments(): Tuple
 > ```
 
+> Boolean of true/false if the function is currently Retrying via a call to `self:ScheduleRetry()`
+> ```lua
+> self:IsRetrying(): boolean
+> ```
+
 > The amount of times the function has began
 > ```lua
 > self:CurrentCycle(): number
@@ -120,6 +125,31 @@ local PlayerAdded = Connect(Players.PlayerAdded, function (self, Player)
     end)
 
     print(CharacterAdded) -- output: {}
+end)
+
+PlayerAdded:onError(function (self, err)
+    self:ScheduleRetry()
+end)
+```
+
+Instead of the above, you should define all essential connections first
+```lua
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+local Players = game:GetService("Players")
+
+local PlayerAdded = Connect(Players.PlayerAdded, function (self, Player)
+    -- This will only establish 1 CharacterAdded connection per Player
+    local CharacterAdded = Connect(Player.UserId, Player.CharacterAdded, function (self, Character)
+        print("adding character")
+    end)
+
+    print(CharacterAdded) -- output: { ... } or an empty table if in the scheduled retry
+
+    if not self:IsRetrying() then
+        thisWillError()
+    end
 end)
 
 PlayerAdded:onError(function (self, err)
