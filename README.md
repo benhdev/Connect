@@ -7,7 +7,128 @@ https://www.roblox.com/library/13518158092/ConnectFramework
 
 ## Usage
 
+### Handling Connections
+```lua
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+Connect(CollectionService:GetInstanceAddedSignal("Bread"), function (self, instance: BasePart)
+    Connect(instance, instance.Touched, function (self, hit)
+        ...
+        if some_condition then
+            self:Disconnect()
+        end
+    end)
+end)
+```
+
+Connections associated with `Player.UserId` automatically disconnect when the player leaves the game
+```lua
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+Connect(Players.PlayerAdded, function (self, Player)
+    Connect(Player.UserId, RunService.Stepped, function (self, runTime, step)
+        ...
+    end)
+end)
+```
+
+Connections associated with an `Instance` automatically disconnect when the instance is being destroyed, or when the parent is set to `nil`
+```lua
+Connect(Player.UserId, Player.CharacterAdded, function (self, Character)
+    local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    Connect(HumanoidRootPart, RunService.Stepped, function (self, runTime, step)
+        print(HumanoidRootPart.Position)
+    end)
+end)
+```
+
+### Error Handling
+
+Available methods on the `self` object within callbacks for `Connect`, `onError`, `onRetryError`, and `onDisconnect`
+
+> Disconnect the callback from the event
+> ```lua
+> self:Disconnect(): void
+> ```
+
+> Get the arguments of the function (excluding `self`)
+> ```lua
+> self:GetArguments(): Tuple
+> ```
+
+> The amount of times the function has began
+> ```lua
+> self:CurrentCycle(): number
+> ```
+
+> The amount of times the function has finished
+> ```lua
+> self:CompletedCycles(): number
+> ```
+
+> Boolean of true/false if the function has ever errored
+> ```lua
+> self:HasError(): boolean
+> ```
+
+> The total amount of errors that appeared during execution
+> ```lua
+> self:TotalErrors(): number
+> ```
+
+> The last error that appeared during execution
+> ```lua
+> self:LastError(): string
+> ```
+
+> The average execution time of the function
+> ```lua
+> self:AverageRunTime(): number
+> ```
+
+Available methods on the `self` object within the callback for `onError`
+> Schedule the original function to retry with the same arguments  
+> ```lua
+> self:ScheduleRetry(delay: number?): void
+> ```
+> **Warning**  
+> Connections to events using `Connect(signal, ...)` will not run within Scheduled Retries to prevent duplicates.  
+> This means if the event callback failed to establish the connection on the first attempt, subsequent retries will not connect the event.
+
+```lua
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+local Players = game:GetService("Players")
+
+local PlayerAdded = Connect(Players.PlayerAdded, function (self, Player)
+
+    if not self:IsRetrying() then
+        thisWillError()
+    end
+
+    -- In this scenario, the Player.CharacterAdded connection will never be established
+    -- as this part of the code will only run in the Scheduled Retry
+    local CharacterAdded = Connect(Player.UserId, Player.CharacterAdded, function (self, Character)
+        print("adding character")
+    end)
+
+    print(CharacterAdded) -- output: {}
+end)
+
+PlayerAdded:onError(function (self, err)
+    self:ScheduleRetry()
+end)
+```
+
 ### Core Gameplay Loops
+
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
@@ -34,46 +155,8 @@ Connect:CreateCoreLoop(options, function (random1, random2)
 end)
 ```
 
-### Handling Connections
-```lua
-local CollectionService = game:GetService("CollectionService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
-
-Connect(CollectionService:GetInstanceAddedSignal("Bread"), function (self, instance: BasePart)
-    Connect(instance, instance.Touched, function (self, hit)
-        ...
-        if some_condition then
-            self:Disconnect()
-        end
-    end)
-end)
-```
-Connections associated with `Player.UserId` automatically disconnect when the player leaves the game
-```lua
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
-
-Connect(Players.PlayerAdded, function (self, Player)
-    Connect(Player.UserId, RunService.Stepped, function (self, runTime, step)
-        ...
-    end)
-end)
-```
-Connections associated with an `Instance` automatically disconnect when the instance is being destroyed, or when the parent is set to `nil`
-```lua
-Connect(Player.UserId, Player.CharacterAdded, function (self, Character)
-    local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-    Connect(HumanoidRootPart, RunService.Stepped, function (self, runTime, step)
-        print(HumanoidRootPart.Position)
-    end)
-end)
-```
-
 ### Threads
+
 `Connect:Delay()` Automatically cancels any existing thread scheduled with the specified key
 ```lua
 if Power == "Double_Speed" then
@@ -85,6 +168,7 @@ if Power == "Double_Speed" then
     end)
 end
 ```
+
 For more control of how threads get cancelled, you may use the following:
 ```lua
 if Power == "Double_Speed" then
@@ -107,79 +191,18 @@ end
 ```
 
 ### Debugging
-#### Error Handling
-Available methods on the `self` object within the callbacks for `Connect`, `onError`, and `onDisconnect`
 
-> The amount of times the function has began
-> ```lua
-> self:CurrentCycle()
-> ```
-
-> The amount of times the function has finished
-> ```lua
-> self:CompletedCycles()
-> ```
-
-> Boolean of true/false if the function has ever errored
-> ```lua
-> self:HasError()
-> ```
-
-> The total amount of errors that appeared during execution
-> ```lua
-> self:TotalErrors()
-> ```
-
-> The last error that appeared during execution
-> ```lua
-> self:LastError()
-> ```
-
-> The average execution time of the function
-> ```lua
-> self:AverageRunTime()
-> ```
-
-Available methods on the `self` object within the callback for `onError`
-
-> Schedule the original function to retry with the same arguments
-> ```lua
-> self:ScheduleRetry(delay: number?)
-> ```
-
+Show warnings relevant to the execution of certain callbacks
 ```lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
-
-local RunService = game:GetService("RunService")
-
-local connection = Connect(RunService.Stepped, function (self, runTime, step)
-    if self:CurrentCycle() == 1 or self:CurrentCycle() == 3 then
-        -- The retry gets passed the same arguments as the one that failed,
-        -- so because of the code here the retry will also fail
-        print(self:CurrentCycle(), runTime)
-        thisWillError()
-    end
-
-    if self:CurrentCycle() == 100 then
-        self:Disconnect()
-    end
-end)
-
-connection:onError(function (self, err)
-    warn(err)
-    self:ScheduleRetry()
-end)
-
-connection:onDisconnect(function (self)
-    print("Connection disconnected!")
-    print("It ran " .. self:CompletedCycles() .. " times!")
-end)
+Connect:DebugEnabled(true)
 ```
+
+Show all warnings and logs, including internal framework info
+```lua
+Connect:DebugEnabled("internal")
+```
+
 Show how many server or client connections you have every 5 seconds depending on the location of the executing script
 ```lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
-
 Connect:Counter()
 ```
