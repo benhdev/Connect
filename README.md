@@ -107,6 +107,75 @@ end
 ```
 
 ### Debugging
+#### Error Handling
+Available methods on the `self` object within the callbacks for `Connect`, `onError`, and `onDisconnect`
+
+> The amount of times the function has began
+> ```lua
+> self:CurrentCycle()
+> ```
+
+> The amount of times the function has finished
+> ```lua
+> self:CompletedCycles()
+> ```
+
+> Boolean of true/false if the function has ever errored
+> ```lua
+> self:HasError()
+> ```
+
+> The total amount of errors that appeared during execution
+> ```lua
+> self:TotalErrors()
+> ```
+
+> The last error that appeared during execution
+> ```lua
+> self:LastError()
+> ```
+
+> The average execution time of the function
+> ```lua
+> self:AverageRunTime()
+> ```
+
+Available methods on the `self` object within the callback for `onError`
+
+> Schedule the original function to retry with the same arguments
+> ```lua
+> self:ScheduleRetry(delay: number?)
+> ```
+
+```lua
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+local RunService = game:GetService("RunService")
+
+local connection = Connect(RunService.Stepped, function (self, runTime, step)
+    if self:CurrentCycle() == 1 or self:CurrentCycle() == 3 then
+        -- The retry gets passed the same arguments as the one that failed,
+        -- so because of the code here the retry will also fail
+        print(self:CurrentCycle(), runTime)
+        thisWillError()
+    end
+
+    if self:CurrentCycle() == 100 then
+        self:Disconnect()
+    end
+end)
+
+connection:onError(function (self, err)
+    warn(err)
+    self:ScheduleRetry()
+end)
+
+connection:onDisconnect(function (self)
+    print("Connection disconnected!")
+    print("It ran " .. self:CompletedCycles() .. " times!")
+end)
+```
 Show how many server or client connections you have every 5 seconds depending on the location of the executing script
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
