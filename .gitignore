@@ -2,6 +2,7 @@
 
 !.gitignore
 !connect.lua
+!ConnectFramework.rbxm
 !README.md
 
 !*/
