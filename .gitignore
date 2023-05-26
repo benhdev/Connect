@@ -1,3 +1,8 @@
-old.lua
-examples.lua
-*.rbxm
+*
+
+!.gitignore
+!connect.lua
+!README.md
+
+!*/
+!*/*.lua
