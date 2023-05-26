@@ -11,16 +11,16 @@ local module: module = {} :: module
 module.threads = {}
 
 function module.GetThread (self: module, key: string): thread?
-	return self.threads[key]
+    return self.threads[key]
 end
 
 function module.Thread (self: module, key: string, thread: thread?): thread
-	if not thread then
-		return self:GetThread(key)
-	end
+    if not thread then
+        return self:GetThread(key)
+    end
 
-	self.threads[key] = thread
-	return thread
+    self.threads[key] = thread
+    return thread
 end
 
 return module

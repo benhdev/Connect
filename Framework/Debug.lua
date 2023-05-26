@@ -9,25 +9,25 @@ type object = table<string>
 local module: module = {} :: module
 
 function module.DebugEnabled (self, v)
-	if typeof(v) == "boolean" or typeof(v) == "string" then
-		self.DebugMode = v
-	end
+    if typeof(v) == "boolean" or typeof(v) == "string" then
+        self.DebugMode = v
+    end
 
-	return self.DebugMode
+    return self.DebugMode
 end
 
 function module.CallstackLevel (self)
-	local depth = 0
+    local depth = 0
 
-	while true do
-		if not debug.info(3 + depth, "n") then
-			break
-		end
+    while true do
+        if not debug.info(3 + depth, "n") then
+            break
+        end
 
-		depth += 1
-	end
+        depth += 1
+    end
 
-	return depth
+    return depth
 end
 
 return module
