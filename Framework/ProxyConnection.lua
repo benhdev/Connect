@@ -8,6 +8,8 @@ type object = table<string>
 
 local module: module = {} :: module
 
+local HttpService = game:GetService("HttpService")
+
 function module.CreateUUID (self: module, key: any): string
     local createKeyThread = coroutine.create(function ()
         while true do
