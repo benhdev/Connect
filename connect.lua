@@ -213,7 +213,6 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 
                     if not connection.Connected and module.connections[key][uuid] then
                         module.connections[key][uuid] = nil
-
                         -- proxy.isRunning is false, so we run the onDisconnectHandler method here
                         if self.onDisconnectHandler and not self.isRunning and not self.HasDisconnected then
                             self:onDisconnectHandler()
@@ -285,7 +284,11 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
                                     else warn("ScheduleRetry Failed: ", result)
 
                                 -- proxy.isRunning is still true, so we run the onDisconnectHandler method here
-                                if connection and not connection.Connected and proxy.onDisconnectHandler and not proxy.HasDisconnected then
+                                if connection
+                                    and not connection.Connected
+                                    and proxy.onDisconnectHandler
+                                    and not proxy.HasDisconnected
+                                then
                                     proxy:onDisconnectHandler()
                                 end
                             end
@@ -310,7 +313,11 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
             end
 
             -- proxy.isRunning is still true, so we run the onDisconnectHandler method here
-            if connection and not connection.Connected and proxy.onDisconnectHandler and not proxy.HasDisconnected then
+            if connection
+                and not connection.Connected
+                and proxy.onDisconnectHandler
+                and not proxy.HasDisconnected
+            then
                 proxy:onDisconnectHandler()
             end
 
