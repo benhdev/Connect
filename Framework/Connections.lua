@@ -90,7 +90,7 @@ function module.DisconnectByKey (self: module, key: any): nil
     end
 
     self.connections[key] = nil
-    if self:DebugEnabled("internal") then
+    if self:DebugEnabled() == "internal" then
         print("Disconnected: ", key)
     end
 
