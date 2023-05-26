@@ -36,10 +36,10 @@ end
 function module.SignalShorthands (self)
     return {
         PlayerAdded     = "Players";
-        PlayerRemoving     = "Players";
+        PlayerRemoving  = "Players";
         Stepped         = "RunService";
-        RenderStepped     = "RunService";
-        Heartbeat         = "RunService";
+        RenderStepped   = "RunService";
+        Heartbeat       = "RunService";
     }
 end
 
