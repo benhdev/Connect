@@ -37,7 +37,11 @@ function module:Initialize()
 
     for _,signalIdentifier in next, {"Players.PlayerRemoving", "game.DescendantRemoving"} do
         self:GetSignal(signalIdentifier):Connect(function(arg)
-            self:DisconnectByKey(if arg:IsA("Player") then arg.UserId else arg)
+            if signalIdentifier == "Players.PlayerRemoving" then
+                return self:DisconnectByKey(arg.UserId)
+            end
+
+            return self:DisconnectByKey(arg)
         end)
     end
 
