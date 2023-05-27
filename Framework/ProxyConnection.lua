@@ -40,6 +40,24 @@ function module.CreateUUID (self: module, key: any): string
     return uuid
 end
 
+function module.InRetry (self)
+    return self.onRetryScriptLine
+        and debug.info(self:CallstackLevel()-2, "n") == "pcall"
+        and debug.info(self:CallstackLevel()-0, "n") == "pcall"
+        and debug.info(self:CallstackLevel()-1, "s") == script:GetFullName()
+        and debug.info(self:CallstackLevel()-1, "l") == self.onRetryScriptLine
+end
+
+function module.InRetryResponse (self)
+    return setmetatable({}, {
+        __index = function (self, k)
+            return function ()
+                return self
+            end
+        end,
+    })
+end
+
 function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, onError): any?
     local module = self
 
@@ -48,25 +66,14 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
         print(self:CallstackLevel(), debug.info(self:CallstackLevel(), "slnaf"))
     end
 
-    if self.onRetryScriptLine
-        and debug.info(self:CallstackLevel()-2, "n") == "pcall"
-        and debug.info(self:CallstackLevel()-0, "n") == "pcall"
-        and debug.info(self:CallstackLevel()-1, "s") == script:GetFullName()
-        and debug.info(self:CallstackLevel()-1, "l") == self.onRetryScriptLine
-    then
+    if self:InRetry() then
         -- This means its running in the ScheduleRetry functionality
         -- TODO: Figure out if connection was already established
         if self:DebugEnabled() == "internal" then
             warn("Exiting AddConnection - within ScheduleRetry")
         end
 
-        return setmetatable({}, {
-            __index = function (self, k)
-                return function ()
-                    return self
-                end
-            end,
-        })
+        return self:InRetryResponse()
     end
 
     local uuid = self:CreateUUID(key)
