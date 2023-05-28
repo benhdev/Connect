@@ -45,6 +45,10 @@ function module:Initialize()
         end)
     end
 
+    function self.new(...): module?
+        return self:AddConnection(...)
+    end
+
     return self
 end
 
