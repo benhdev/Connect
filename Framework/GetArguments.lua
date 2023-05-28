@@ -8,7 +8,7 @@ return function (self: module, ...): (any, RBXScriptSignal, (module, ...any?) ->
         key = "Global"
     end
 
-    signal = self:GetSignal(signal)
+    signal = self:GetSignal(signal, key)
 
     if self:DebugEnabled() == "internal" then
         print(key, signal, callback, onError)
