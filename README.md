@@ -1,4 +1,4 @@
-# Connect Framework V1.1
+# Connect Framework V1.2
 A helpful framework to handle core game functionality, RBXScriptSignal Connections, and help to prevent memory leaks.
 
 This framework is in its very early stages, I will continue to make updates regularly.
