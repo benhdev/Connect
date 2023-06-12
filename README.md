@@ -1,4 +1,4 @@
-# Connect Framework V1.1
+# Connect Framework
 ![version](https://badgen.net/badge/version/v1.1/gray)
 [![Twitter](https://badgen.net/badge/Twitter/@WebmotionRBLX/blue?icon=twitter)](https://twitter.com/@WebmotionRBLX)
 
