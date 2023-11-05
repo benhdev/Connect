@@ -15,27 +15,23 @@ Connect.new("Players.PlayerAdded", function (self, Player)
 		Time.Name = "Time"
 
 		Session:onUpdate(key, function (self, value)
-			local seconds = value
-			local mins = math.floor(seconds/60)
-			local hours = math.floor(mins/60)
-			local days = math.floor(hours/24)
-            
-            local newValue
-            if (mins >= 1) then
-                newValue = mins .. " mins"
-            else
-                newValue = seconds .. " secs"
+            local f,dv
+            if (value >= 86400) then
+                dv = math.floor(value/86400)
+                f = dv .. " days "
             end
 
-            if (hours >= 1) then
-                newValue = hours .. " hours"
+            local m = value
+            if (f and dv) then
+                m = value - (86400 * dv)
             end
 
-            if days >= 1 then
-                newValue = days .. " days"
-            end
+            local t = {" mins", " hours"}
+            local e = math.min(#t, math.floor(math.log(m, 60)))
+            local d = t[e] or " secs"
 
-            Time.Value = newValue
+            local v = (f or "") .. math.floor(m / (60 ^ e)) .. d
+            Time.Value = v
         end)
 
 		Time.Parent = leaderstats
@@ -89,3 +85,5 @@ game:BindToClose(function ()
         end)
     end
 end)
+
+print('test')
