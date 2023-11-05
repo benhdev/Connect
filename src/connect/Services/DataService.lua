@@ -52,7 +52,7 @@ function DataService.DataStoreThrottle (self, proxy, func, t)
 			return
 		end
 		
-		return proxy:callback(result)
+		return proxy:callback(result), proxy:setFinished()
 	end)
 end
 
@@ -88,6 +88,12 @@ function DataService.proxy (self, callback, onError)
 		shouldRetry = true;
 
 		onErrorHandler = onError;
+
+		finished = false;
+
+		setFinished = function (self)
+			self.finished = true
+		end;
 
 		onError = function (self, callback)
 			self.onErrorHandler = callback

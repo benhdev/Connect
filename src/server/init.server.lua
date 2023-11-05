@@ -3,7 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
 local Session = Connect:Session()
 
-Connect.new("Players.PlayerAdded", function (self, Player)
+Connect.new("PlayerAdded", function (self, Player)
     local key = Session:Key(Player.UserId)
 
 	local leaderstats = Instance.new("IntValue")
@@ -37,6 +37,8 @@ Connect.new("Players.PlayerAdded", function (self, Player)
         end)
         
         Connect.tick(1, function ()
+            -- need to cancel this when the player
+            -- has left the game
             local value = (Session:Get(key) or (response or 0)) + 1
 
             if (value % 180 == 0) then
@@ -60,10 +62,17 @@ Connect.new("Players.PlayerAdded", function (self, Player)
 	end)
 end)
 
-Connect.new("Players.PlayerRemoving", function (self, Player)
+Connect.new("PlayerRemoving", function (self, Player)
     local key = Session:Key(Player.UserId)
 
-    local DataStoreRequest = Connect:Store(Player.UserId, Session:Get(key), function (self, response)
+	local value = Session:Get(key)
+	
+	print(Session:Get(Player.UserId))
+	Session:Remove(Player.UserId)
+
+    print(Session.Data)
+
+	local DataStoreRequest = Connect:Store(Player.UserId, value, function (self, response)
         return response
     end)
 
@@ -74,10 +83,15 @@ Connect.new("Players.PlayerRemoving", function (self, Player)
             self:CancelRetry()
         end
     end)
+
+    repeat task.wait() until DataStoreRequest.finished
 end)
 
 game:BindToClose(function ()
+	print(Session.Data)
     for userId, userData in next, Session.Data do
+        Session:Remove(userId)
+
         local DataStoreRequest = Connect:Store(userId, userData, function (self, response)
             return response
         end)
@@ -85,9 +99,11 @@ game:BindToClose(function ()
         DataStoreRequest:onError(function (self, err)
             warn(err)
 		
-            if self.retries == 5 then
+            if self.retries == 3 then
                 self:CancelRetry()
             end
         end)
+
+        repeat task.wait() until DataStoreRequest.finished
     end
 end)

@@ -72,6 +72,31 @@ function framework.Session (self, object: object?)
 			end
 		end
 	end
+
+	function storage:Remove (key): ()
+		local key = tostring(key)
+		local nest = key:split(".")
+		
+		table.insert(nest, (#nest), "")
+
+		local t = self.Data do
+			for _,nest in next, nest do
+				if nest:len() == 0 then
+					break
+				end
+				
+				local nest = tonumber(nest) or nest
+				
+				if not t[nest] then
+					return
+				end
+
+				t = t[nest]
+			end
+		end
+
+		t[tonumber(nest[#nest]) or nest[#nest]] = nil
+	end
 	
 	storage.updateHandlers = {}
 	
