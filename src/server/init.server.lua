@@ -42,12 +42,16 @@ Connect.new("PlayerAdded", function (self, Player)
             local value = (Session:Get(key) or (response or 0)) + 1
 
             if (value % 180 == 0) then
+                -- autosave every 3 minutes
                 Connect:Store(Player.UserId, value, function (self, response)
                     return response
                 end)
             end
 
             Session:Update(key, value)
+        end, function ()
+            -- Cancel running if the player has left
+            return not (Player and Player.Parent)
         end)
 
         Time.Parent = leaderstats
@@ -66,11 +70,7 @@ Connect.new("PlayerRemoving", function (self, Player)
     local key = Session:Key(Player.UserId)
 
 	local value = Session:Get(key)
-	
-	print(Session:Get(Player.UserId))
 	Session:Remove(Player.UserId)
-
-    print(Session.Data)
 
 	local DataStoreRequest = Connect:Store(Player.UserId, value, function (self, response)
         return response
@@ -84,11 +84,10 @@ Connect.new("PlayerRemoving", function (self, Player)
         end
     end)
 
-    repeat task.wait() until DataStoreRequest.finished
+    DataStoreRequest:sync()
 end)
 
 game:BindToClose(function ()
-	print(Session.Data)
     for userId, userData in next, Session.Data do
         Session:Remove(userId)
 
@@ -104,6 +103,6 @@ game:BindToClose(function ()
             end
         end)
 
-        repeat task.wait() until DataStoreRequest.finished
+        DataStoreRequest:sync()
     end
 end)

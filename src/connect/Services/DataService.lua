@@ -89,10 +89,18 @@ function DataService.proxy (self, callback, onError)
 
 		onErrorHandler = onError;
 
-		finished = false;
+		isFinished = false;
+
+		finished = function (self)
+			return self.isFinished
+		end;
+
+		sync = function (self)
+			repeat task.wait() until self:finished()
+		end;
 
 		setFinished = function (self)
-			self.finished = true
+			self.isFinished = true
 		end;
 
 		onError = function (self, callback)

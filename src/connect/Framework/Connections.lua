@@ -51,6 +51,10 @@ function module.CreateCoreLoop (self: module, options: { [string]: any }, callba
 	local Interval = options("StartInstantly") and 0 or options("Interval")
 
 	self("Stepped", function (self, runTime, step)
+		if (options("Cancel")) then
+			self:Disconnect()
+		end
+
 		if runTime >= (PreviousCoreRunTime + Interval) then
 			PreviousCoreRunTime, Interval = runTime, options("Interval")
 			callback(options("Arguments"))

@@ -49,8 +49,8 @@ function module:Initialize()
         return self:AddConnection(...)
     end
 
-    function self.tick (interval: number, callback): module?
-        return self:CreateCoreLoop({ Interval = interval }, callback)
+    function self.tick (interval: number, callback, Cancel): module?
+        return self:CreateCoreLoop({ Interval = interval, Cancel = Cancel }, callback)
     end
 
     return self
