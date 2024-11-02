@@ -33,8 +33,9 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
 
-Connect(CollectionService:GetInstanceAddedSignal("Bread"), function (self, instance: BasePart)
-    Connect(instance, instance.Touched, function (self, hit)
+local signal = CollectionService:GetInstanceAddedSignal("Bread")
+Connect:create(signal, function (self, instance: BasePart)
+    Connect:create(instance, "Touched", function (self, hit)
         ...
         if some_condition then
             self:Disconnect()
@@ -46,14 +47,11 @@ end)
 Connections associated with `Player.UserId` automatically disconnect when the player leaves the game
 
 ```lua
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
 
-Connect(Players.PlayerAdded, function (self, Player)
-    Connect(Player.UserId, RunService.Stepped, function (self, runTime, step)
+Connect:create("Players.PlayerAdded", function (self, Player)
+    Connect(Player.UserId, "RunService.Stepped", function (self, runTime, step)
         ...
     end)
 end)
@@ -62,9 +60,9 @@ end)
 Connections associated with an `Instance` automatically disconnect when the instance is being destroyed, or when the parent is set to `nil`
 
 ```lua
-Connect(Player.UserId, Player.CharacterAdded, function (self, Character)
+Connect:create(Player, "CharacterAdded", function (self, Character)
     local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-    Connect(HumanoidRootPart, RunService.Stepped, function (self, runTime, step)
+    Connect:create(HumanoidRootPart, "RunService.Stepped", function (self, runTime, step)
         print(HumanoidRootPart.Position)
     end)
 end)
@@ -159,6 +157,12 @@ DataStoreRequest:sync()
 print(DataStoreRequest.response)
 ```
 
+Checking if the DataStoreRequest has finished
+
+```lua
+print(DataStoreRequest:finished())
+```
+
 An example
 
 ```lua
@@ -180,7 +184,7 @@ Connect:create("PlayerAdded", function (self, Player)
 
     -- Register a Key specific onUpdate handler
     Session:onUpdate(key, function (self, value)
-
+        -- print(`{key}: {value}`)
     end)
 
     -- Fetch the player's saved data for this key

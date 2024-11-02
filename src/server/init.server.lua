@@ -8,11 +8,18 @@ local Session = Connect:Session()
 
 -- Register a global onUpdate handler
 Session:onUpdate(function (self, key, value)
-    print(`{key}: {value}`)
+    -- print(`{key}: {value}`)
 end)
 
 -- Register the PlayerAdded Connection
-Connect:create("PlayerAdded", function (self, Player)
+local PlayerAdded = Connect:create("PlayerAdded", function (self, Player)
+    Connect:create(Player, "CharacterAdded", function (self, Character)
+        local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+        Connect:create(HumanoidRootPart, "RunService.Stepped", function (self, runTime, step)
+            print(HumanoidRootPart.Position)
+        end)
+    end)
+
     Connect:create(Player, "CharacterAdded", function (self, Character)
         Connect:create(Character, "RunService.Stepped", function (self, step)
             -- This will only run while the character exists, 
@@ -30,8 +37,9 @@ Connect:create("PlayerAdded", function (self, Player)
 
     -- Fetch the player's saved data for this key
     Connect:fetch(key, function (self, response)
+        print("NO")
         Connect.tick(1, function ()
-            print(self:finished())
+            -- print(self:finished())
             -- Increase the points each second
             Session:store(key, (Session:Get(key) or response or 0) + 1)
         end)
