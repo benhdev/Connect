@@ -36,14 +36,28 @@ local PlayerAdded = Connect:create("PlayerAdded", function (self, Player)
     end)
 
     -- Fetch the player's saved data for this key
-    Connect:fetch(key, function (self, response)
-        print("NO")
+    local DataStoreRequest = Connect:fetch(key, function (self, response)
         Connect.tick(1, function ()
             -- print(self:finished())
             -- Increase the points each second
             Session:store(key, (Session:Get(key) or response or 0) + 1)
+        end, function ()
+            -- Cancel running if the player has left
+            return not (Player and Player.Parent)
         end)
     end)
+
+    DataStoreRequest:onError(function (self, err)
+        warn(err)
+
+        if (self.retries == 5) then
+            self:CancelRetry()
+        end
+    end)
+
+    DataStoreRequest:sync()
+
+    print("Data loaded!")
 end)
 
 -- Register the PlayerRemoving connection
