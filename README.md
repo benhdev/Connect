@@ -85,19 +85,51 @@ local key = Session:Key(Player.UserId, "Points")
 Retrieving a value saved in the Session
 
 ```lua
-Session:Get(key)
+Session:get(key)
+```
+
+```lua
+Session:find(key)
+```
+
+```lua
+Session:fetch(key)
+```
+
+```lua
+Session::retrieve(key)
 ```
 
 Saving a value in the Session
 
 ```lua
-Session:Update(key, value)
+Session:store(key, value)
+```
+
+```lua
+Session:save(key, value)
+```
+
+```lua
+Session:set(key, value)
+```
+
+```lua
+Session:update(key, value)
 ```
 
 Removing a value from the Session
 
 ```lua
-Session:Remove(key)
+Session:remove(key)
+```
+
+```lua
+Session:unset(key)
+```
+
+```lua
+Session:delete(key)
 ```
 
 Detecting updates to any Session value

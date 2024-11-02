@@ -124,6 +124,7 @@ function framework.Session (self, object: object?)
 	storage.store = storage.Update
 	storage.save = storage.Update
 	storage.set = storage.Update
+	storage.update = storage.Update
 
 	storage.get = storage.Get
 	storage.fetch = storage.Get

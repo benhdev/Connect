@@ -13,22 +13,28 @@ end)
 
 -- Register the PlayerAdded Connection
 local PlayerAdded = Connect:create("PlayerAdded", function (self, Player)
+    -- Create a Key for the Player's points
+    local key = Session:key(Player.UserId, "Points")
+
     Connect:create(Player, "CharacterAdded", function (self, Character)
         local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
         Connect:create(HumanoidRootPart, "RunService.Stepped", function (self, runTime, step)
-            print(HumanoidRootPart.Position)
+            -- print(HumanoidRootPart.Position)
         end)
     end)
 
     Connect:create(Player, "CharacterAdded", function (self, Character)
+        Connect.tick(5, function ()
+            print(Session:find(key))
+        end, function ()
+            return not (Character and Character.Parent)
+        end)
+
         Connect:create(Character, "RunService.Stepped", function (self, step)
             -- This will only run while the character exists, 
             -- and automatically disconnects when the character no longer exists
         end)
     end)
-
-    -- Create a Key for the Player's points
-    local key = Session:key(Player.UserId, "Points")
 
     -- Register a Key specific onUpdate handler
     Session:onUpdate(key, function (self, value)
