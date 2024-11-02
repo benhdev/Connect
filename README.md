@@ -74,9 +74,7 @@ end)
 
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
-Connect:UseDataStore(5)
 
 -- Create the session
 local Session = Connect:Session()
