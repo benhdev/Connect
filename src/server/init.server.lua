@@ -8,11 +8,18 @@ local Session = Connect:Session()
 
 -- Register a global onUpdate handler
 Session:onUpdate(function (self, key, value)
-    print(`{key}: {value}`)
+    -- print(`{key}: {value}`)
 end)
 
 -- Register the PlayerAdded Connection
-Connect:once("Players.PlayerAdded", function (self, Player)
+Connect:create("PlayerAdded", function (self, Player)
+    Connect:create(Player, "CharacterAdded", function (self, Character)
+        Connect:create(Character, "RunService.Stepped", function (self, step)
+            -- This will only run while the character exists, 
+            -- and automatically disconnects when the character no longer exists
+        end)
+    end)
+
     -- Create a Key for the Player's points
     local key = Session:Key(Player.UserId, "Points")
 
@@ -31,7 +38,7 @@ Connect:once("Players.PlayerAdded", function (self, Player)
 end)
 
 -- Register the PlayerRemoving connection
-Connect:once("Players.PlayerRemoving", function (self, Player)
+Connect:create("Players.PlayerRemoving", function (self, Player)
     local key = Session:Key(Player.UserId, "Points")
     local value = Session:Get(key)
     
@@ -41,3 +48,6 @@ Connect:once("Players.PlayerRemoving", function (self, Player)
         Session:Remove(key)
     end)
 end)
+
+Connect:DebugEnabled("internal")
+Connect:Counter()

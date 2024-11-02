@@ -360,6 +360,7 @@ module.pointers = {}
 
 function module.setPointers (self: module)
     self.pointers.addConnection = self.AddConnection;
+    self.pointers.create = self.AddConnection;
     self.pointers.once = self.Once;
     self.pointers.parallel = self.Parallel;
 	self.pointers.createCoreLoop = self.CreateCoreLoop;
@@ -1438,11 +1439,18 @@ local Session = Connect:Session()
 
 -- Register a global onUpdate handler
 Session:onUpdate(function (self, key, value)
-    print(`{key}: {value}`)
+    -- print(`{key}: {value}`)
 end)
 
 -- Register the PlayerAdded Connection
-Connect:once("Players.PlayerAdded", function (self, Player)
+Connect:create("PlayerAdded", function (self, Player)
+    Connect:create(Player, "CharacterAdded", function (self, Character)
+        Connect:create(Character, "RunService.Stepped", function (self, step)
+            -- This will only run while the character exists, 
+            -- and automatically disconnects when the character no longer exists
+        end)
+    end)
+
     -- Create a Key for the Player's points
     local key = Session:Key(Player.UserId, "Points")
 
@@ -1461,7 +1469,7 @@ Connect:once("Players.PlayerAdded", function (self, Player)
 end)
 
 -- Register the PlayerRemoving connection
-Connect:once("Players.PlayerRemoving", function (self, Player)
+Connect:create("Players.PlayerRemoving", function (self, Player)
     local key = Session:Key(Player.UserId, "Points")
     local value = Session:Get(key)
     
@@ -1470,7 +1478,10 @@ Connect:once("Players.PlayerRemoving", function (self, Player)
         -- Remove the key from session storage, it's no longer needed
         Session:Remove(key)
     end)
-end)</string>
+end)
+
+Connect:DebugEnabled("internal")
+Connect:Counter()</string>
       </Properties>
       <Item class="Script" referent="23">
         <Properties>

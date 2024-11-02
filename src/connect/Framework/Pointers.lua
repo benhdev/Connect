@@ -12,6 +12,7 @@ module.pointers = {}
 
 function module.setPointers (self: module)
     self.pointers.addConnection = self.AddConnection;
+    self.pointers.create = self.AddConnection;
     self.pointers.once = self.Once;
     self.pointers.parallel = self.Parallel;
 	self.pointers.createCoreLoop = self.CreateCoreLoop;
