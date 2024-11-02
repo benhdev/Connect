@@ -163,8 +163,7 @@ Checking if the DataStoreRequest has finished
 print(DataStoreRequest:finished())
 ```
 
-> [!TIP]
-> An example
+> [!TIP] > _example_
 >
 > ```lua
 > local ReplicatedStorage = game:GetService("ReplicatedStorage")
