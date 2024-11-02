@@ -275,9 +275,6 @@ Available methods on the `self` object within the callback for `onError`
 > Connections to events using `Connect(signal, ...)` will not run within Scheduled Retries to prevent duplicates.
 > This means if the event callback failed to establish the connection on the first attempt, subsequent retries will not connect the event.
 
-> [!NOTE]
-> It is possible to bypass this security measure by creating a new thread, although it is not advisable.
-
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
@@ -329,6 +326,9 @@ PlayerAdded:onError(function (self, err)
     self:ScheduleRetry()
 end)
 ```
+
+> [!NOTE]
+> It is possible to bypass this security measure by creating a new thread, although it is not advisable.
 
 ### Core Gameplay Loops
 
