@@ -18,6 +18,7 @@ function module.setPointers (self: module)
 	self.pointers.createCoreLoop = self.CreateCoreLoop;
 	self.pointers.fetch = self.Fetch
 	self.pointers.store = self.Store
+    self.pointers.session = self.Session
 
     return self.pointers
 end

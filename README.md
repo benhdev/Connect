@@ -72,6 +72,95 @@ end)
 
 ### Handling Sessions
 
+Creating a Session
+
+```lua
+local Session = Connect:Session()
+```
+
+Creating a new Session Key
+
+```lua
+local key = Session:Key(Player.UserId, "Points")
+```
+
+Retrieving a value saved in the Session
+
+```lua
+Session:Get(key)
+```
+
+Saving a value in the Session
+
+```lua
+Session:Update(key, value)
+```
+
+Removing a value from the Session
+
+```lua
+Session:Remove(key)
+```
+
+Detecting updates to any Session value
+
+```lua
+Session:onUpdate(function (self, key, value)
+    print(`{key}: {value}`)
+end)
+```
+
+Detecting updates to a specific Session value
+
+```lua
+Session:onUpdate(key, function (self, value)
+    print(`{key}: {value}`)
+end)
+```
+
+### Data Storage & Retrieval
+
+Connect provides various utilities to make handling datastores easier
+
+Retrieving a value from the DataStore
+
+```lua
+local DataStoreRequest = Connect:fetch(key, function (self, response)
+    print(`{key}: {response}`)
+end)
+```
+
+Storing a value in the DataStore
+
+```lua
+local DataStoreRequest = Connect:store(key, value, function (self, response)
+    -- if working with the Session utility, the below is best practice
+    -- if the value is no longer needed in the session (e.g. the Player leaving)
+    Session:Remove(key)
+end)
+```
+
+Handling DataStore Errors
+
+```lua
+DataStoreRequest:onError(function (self, err)
+    warn(err)
+
+    if self.retries == 5 then
+        self:CancelRetry()
+    end
+end)
+```
+
+Yield execution until a DataStoreRequest has completed
+
+```lua
+DataStoreRequest:sync()
+print(DataStoreRequest.response)
+```
+
+An example
+
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))

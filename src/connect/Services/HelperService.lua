@@ -96,7 +96,7 @@ function framework.Session (self, object: object?)
 		end
 
 		t[tonumber(nest[#nest]) or nest[#nest]] = nil
-		
+
 		if self.updateHandlers[key] then
 			self.updateHandlers[key] = nil
 		end
@@ -120,7 +120,22 @@ function framework.Session (self, object: object?)
 		
 		table.insert(self.updateHandlers[key], callback)
 	end
+
+	storage.store = storage.Update
+	storage.save = storage.Update
+	storage.set = storage.Update
+
+	storage.get = storage.Get
+	storage.fetch = storage.Get
+	storage.retrieve = storage.Get
+	storage.find = storage.Get
+
+	storage.remove = storage.Remove
+	storage.unset = storage.Remove
+	storage.delete = storage.Remove
 	
+	storage.key = storage.Key
+
 	return setmetatable(storage, {
 		__index = function (self, key)
 			return self:Get(key)

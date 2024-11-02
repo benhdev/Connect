@@ -8,7 +8,7 @@ local Session = Connect:Session()
 
 -- Register a global onUpdate handler
 Session:onUpdate(function (self, key, value)
-    -- print(`{key}: {value}`)
+    print(`{key}: {value}`)
 end)
 
 -- Register the PlayerAdded Connection
@@ -21,7 +21,7 @@ Connect:create("PlayerAdded", function (self, Player)
     end)
 
     -- Create a Key for the Player's points
-    local key = Session:Key(Player.UserId, "Points")
+    local key = Session:key(Player.UserId, "Points")
 
     -- Register a Key specific onUpdate handler
     Session:onUpdate(key, function (self, value)
@@ -31,21 +31,22 @@ Connect:create("PlayerAdded", function (self, Player)
     -- Fetch the player's saved data for this key
     Connect:fetch(key, function (self, response)
         Connect.tick(1, function ()
+            print(self:finished())
             -- Increase the points each second
-            Session:Update(key, (Session:Get(key) or response or 0) + 1)
+            Session:store(key, (Session:Get(key) or response or 0) + 1)
         end)
     end)
 end)
 
 -- Register the PlayerRemoving connection
 Connect:create("Players.PlayerRemoving", function (self, Player)
-    local key = Session:Key(Player.UserId, "Points")
-    local value = Session:Get(key)
+    local key = Session:key(Player.UserId, "Points")
+    local value = Session:find(key)
     
     -- Save the player's points
     Connect:store(key, value, function (self, response)
         -- Remove the key from session storage, it's no longer needed
-        Session:Remove(key)
+        Session:remove(key)
     end)
 end)
 
