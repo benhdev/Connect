@@ -225,7 +225,7 @@ print(DataStoreRequest:finished())
 >     local DataStoreRequest = Connect:fetch(key, function (self, response)
 >         Connect.tick(1, function ()
 >             -- Increase the points each second
->             Session:update(key, (Session:find(key) or response or 0) + 1)
+>             Session:store(key, (Session:find(key) or response or 0) + 1)
 >         end, function ()
 >             -- Cancel running if the player has left
 >             return not (Player and Player.Parent)
