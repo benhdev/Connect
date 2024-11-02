@@ -96,6 +96,10 @@ function framework.Session (self, object: object?)
 		end
 
 		t[tonumber(nest[#nest]) or nest[#nest]] = nil
+		
+		if self.updateHandlers[key] then
+			self.updateHandlers[key] = nil
+		end
 	end
 	
 	storage.updateHandlers = {}

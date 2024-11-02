@@ -49,10 +49,12 @@ function DataService.DataStoreThrottle (self, proxy, func, t)
 				return self:DataStoreThrottle(proxy, func, 5)
 			end
 			
-			return
+			-- Not sure if to return void here or this
+			return proxy:callback(proxy.response), proxy:setFinished()
 		end
 		
-		return proxy:callback(result), proxy:setFinished()
+		proxy:setResponse(result);
+		return proxy:callback(proxy.response), proxy:setFinished()
 	end)
 end
 
@@ -82,6 +84,8 @@ end
 
 function DataService.proxy (self, callback, onError)
 	return {
+		response = nil;
+
 		callback = callback;
 
 		retries = 0;
@@ -101,6 +105,10 @@ function DataService.proxy (self, callback, onError)
 
 		setFinished = function (self)
 			self.isFinished = true
+		end;
+
+		setResponse = function (self, response)
+			self.response = response
 		end;
 
 		onError = function (self, callback)
