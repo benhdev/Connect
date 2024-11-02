@@ -73,13 +73,13 @@ end)
 Creating a Session
 
 ```lua
-local Session = Connect:Session()
+local Session = Connect:session()
 ```
 
 Creating a new Session Key
 
 ```lua
-local key = Session:Key(Player.UserId, "Points")
+local key = Session:key(Player.UserId, "Points")
 ```
 
 Retrieving a value saved in the Session
@@ -166,7 +166,7 @@ Storing a value in the DataStore
 local DataStoreRequest = Connect:store(key, value, function (self, response)
     -- if working with the Session utility, the below is best practice
     -- if the value is no longer needed in the session (e.g. the Player leaving)
-    Session:Remove(key)
+    Session:remove(key)
 end)
 ```
 
@@ -204,7 +204,7 @@ print(DataStoreRequest:finished())
 > local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
 >
 > -- Create the session
-> local Session = Connect:Session()
+> local Session = Connect:session()
 >
 > -- Register a global onUpdate handler
 > Session:onUpdate(function (self, key, value)
@@ -214,7 +214,7 @@ print(DataStoreRequest:finished())
 > -- Register the PlayerAdded Connection
 > Connect:create("PlayerAdded", function (self, Player)
 >     -- Create a Key for the Player's points
->     local key = Session:Key(Player.UserId, "Points")
+>     local key = Session:key(Player.UserId, "Points")
 >
 >     -- Register a Key specific onUpdate handler
 >     Session:onUpdate(key, function (self, value)
@@ -224,9 +224,8 @@ print(DataStoreRequest:finished())
 >     -- Fetch the player's saved data for this key
 >     local DataStoreRequest = Connect:fetch(key, function (self, response)
 >         Connect.tick(1, function ()
->             -- print(self:finished())
 >             -- Increase the points each second
->             Session:store(key, (Session:Get(key) or response or 0) + 1)
+>             Session:update(key, (Session:find(key) or response or 0) + 1)
 >         end, function ()
 >             -- Cancel running if the player has left
 >             return not (Player and Player.Parent)
@@ -236,13 +235,13 @@ print(DataStoreRequest:finished())
 >
 > -- Register the PlayerRemoving connection
 > Connect:create("PlayerRemoving", function (self, Player)
->     local key = Session:Key(Player.UserId, "Points")
->     local value = Session:Get(key)
+>     local key = Session:key(Player.UserId, "Points")
+>     local value = Session:find(key)
 >
 >     -- Save the player's points
 >     Connect:store(key, value, function (self, response)
 >         -- Remove the key from session storage, it's no longer needed
->         Session:Remove(key)
+>         Session:remove(key)
 >     end)
 > end)
 > ```
