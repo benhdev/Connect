@@ -52,6 +52,7 @@ function module:Initialize()
         end
     end
 
+    setmetatable(self.framework, { __index = self.framework:setPointers() })
     setmetatable(self, { __index = self.framework; __call = self.framework.AddConnection :: (any) -> any; })
 
     self:Thread("MODULE_SECURITY", coroutine.create(self.Cleanup))
@@ -60,7 +61,7 @@ function module:Initialize()
     for _,signalIdentifier in next, {"Players.PlayerRemoving", "game.DescendantRemoving"} do
         self:GetSignal(signalIdentifier):Connect(function(arg)
             if signalIdentifier == "Players.PlayerRemoving" then
-                return self:DisconnectByKey(arg.UserId)
+                self:DisconnectByKey(arg.UserId)
             end
 
             return self:DisconnectByKey(arg)
@@ -71,8 +72,8 @@ function module:Initialize()
         return self:AddConnection(...)
     end
 
-    function self.tick (interval: number, callback): module?
-        return self:CreateCoreLoop({ Interval = interval }, callback)
+    function self.tick (interval: number, callback, Cancel): module?
+        return self:CreateCoreLoop({ Interval = interval, Cancel = Cancel }, callback)
     end
 
     return self
@@ -192,6 +193,10 @@ function module.CreateCoreLoop (self: module, options: { [string]: any }, callba
 	local Interval = options("StartInstantly") and 0 or options("Interval")
 
 	self("Stepped", function (self, runTime, step)
+		if (options("Cancel")) then
+			self:Disconnect()
+		end
+
 		if runTime >= (PreviousCoreRunTime + Interval) then
 			PreviousCoreRunTime, Interval = runTime, options("Interval")
 			callback(options("Arguments"))
@@ -339,6 +344,35 @@ end
           </Properties>
         </Item>
         <Item class="ModuleScript" referent="8">
+          <Properties>
+            <string name="Name">Pointers</string>
+            <string name="Source">--!strict
+type table&lt;T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) &amp; table&lt;any>
+type array = table&lt;number>
+type object = table&lt;string>
+
+local module: module = {} :: module
+
+module.pointers = {}
+
+function module.setPointers (self: module)
+    self.pointers.addConnection = self.AddConnection;
+    self.pointers.once = self.Once;
+    self.pointers.parallel = self.Parallel;
+	self.pointers.createCoreLoop = self.CreateCoreLoop;
+	self.pointers.fetch = self.Fetch
+	self.pointers.store = self.Store
+
+    return self.pointers
+end
+
+return module</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="9">
           <Properties>
             <string name="Name">ProxyConnection</string>
             <string name="Source"><![CDATA[--!strict
@@ -616,7 +650,7 @@ return module
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="9">
+        <Item class="ModuleScript" referent="10">
           <Properties>
             <string name="Name">Signal</string>
             <string name="Source"><![CDATA[--!strict
@@ -669,11 +703,11 @@ return module
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="10">
+      <Item class="Folder" referent="11">
         <Properties>
           <string name="Name">Services</string>
         </Properties>
-        <Item class="ModuleScript" referent="11">
+        <Item class="ModuleScript" referent="12">
           <Properties>
             <string name="Name">DataService</string>
             <string name="Source"><![CDATA[--!strict
@@ -727,10 +761,12 @@ function DataService.DataStoreThrottle (self, proxy, func, t)
 				return self:DataStoreThrottle(proxy, func, 5)
 			end
 			
-			return
+			-- Not sure if to return void here or this
+			return proxy:callback(proxy.response), proxy:setFinished()
 		end
 		
-		return proxy:callback(result)
+		proxy:setResponse(result);
+		return proxy:callback(proxy.response), proxy:setFinished()
 	end)
 end
 
@@ -760,12 +796,32 @@ end
 
 function DataService.proxy (self, callback, onError)
 	return {
+		response = nil;
+
 		callback = callback;
 
 		retries = 0;
 		shouldRetry = true;
 
 		onErrorHandler = onError;
+
+		isFinished = false;
+
+		finished = function (self)
+			return self.isFinished
+		end;
+
+		sync = function (self)
+			repeat task.wait() until self:finished()
+		end;
+
+		setFinished = function (self)
+			self.isFinished = true
+		end;
+
+		setResponse = function (self, response)
+			self.response = response
+		end;
 
 		onError = function (self, callback)
 			self.onErrorHandler = callback
@@ -826,7 +882,7 @@ return framework
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="12">
+        <Item class="ModuleScript" referent="13">
           <Properties>
             <string name="Name">FeatureService</string>
             <string name="Source">-- --!strict
@@ -1065,7 +1121,7 @@ return framework
 return {}</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">HelperService</string>
             <string name="Source"><![CDATA[--!strict
@@ -1142,6 +1198,35 @@ function framework.Session (self, object: object?)
 			end
 		end
 	end
+
+	function storage:Remove (key): ()
+		local key = tostring(key)
+		local nest = key:split(".")
+		
+		table.insert(nest, (#nest), "")
+
+		local t = self.Data do
+			for _,nest in next, nest do
+				if nest:len() == 0 then
+					break
+				end
+				
+				local nest = tonumber(nest) or nest
+				
+				if not t[nest] then
+					return
+				end
+
+				t = t[nest]
+			end
+		end
+
+		t[tonumber(nest[#nest]) or nest[#nest]] = nil
+		
+		if self.updateHandlers[key] then
+			self.updateHandlers[key] = nil
+		end
+	end
 	
 	storage.updateHandlers = {}
 	
@@ -1201,11 +1286,11 @@ return framework
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="14">
+      <Item class="Folder" referent="15">
         <Properties>
           <string name="Name">Threads</string>
         </Properties>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="16">
           <Properties>
             <string name="Name">Delay</string>
             <string name="Source">return function (self: module, seconds: number, key: string, callback: () -> ()): thread
@@ -1218,7 +1303,7 @@ return framework
 end</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">Thread</string>
             <string name="Source">--!strict
@@ -1250,11 +1335,11 @@ return module</string>
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="17">
+      <Item class="Folder" referent="18">
         <Properties>
           <string name="Name">Validation</string>
         </Properties>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Validate</string>
             <string name="Source"><![CDATA[--!strict
@@ -1329,109 +1414,65 @@ return module
         </Item>
       </Item>
     </Item>
-    <Item class="Folder" referent="19">
+    <Item class="Folder" referent="20">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="20">
+  <Item class="ServerScriptService" referent="21">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Script" referent="21">
+    <Item class="Script" referent="22">
       <Properties>
         <string name="Name">server</string>
         <token name="RunContext">0</token>
         <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+Connect:UseDataStore(5)
+
+-- Create the session
 local Session = Connect:Session()
 
-Connect.new("Players.PlayerAdded", function (self, Player)
-    local key = Session:Key(Player.UserId, "Time")
+-- Register a global onUpdate handler
+Session:onUpdate(function (self, key, value)
+    print(`{key}: {value}`)
+end)
 
-	local leaderstats = Instance.new("IntValue")
-	leaderstats.Name = "leaderstats"
-	leaderstats.Parent = Player
+-- Register the PlayerAdded Connection
+Connect:once("Players.PlayerAdded", function (self, Player)
+    -- Create a Key for the Player's points
+    local key = Session:Key(Player.UserId, "Points")
 
-    local DataStoreRequest = Connect:Fetch(Player.UserId, function (self, response)
-        local Time = Instance.new("StringValue")
-		Time.Name = "Time"
+    -- Register a Key specific onUpdate handler
+    Session:onUpdate(key, function (self, value)
 
-		Session:onUpdate(key, function (self, value)
-            local f,dv
-            if (value >= 86400) then
-                dv = math.floor(value/86400)
-                f = dv .. " days "
-            end
+    end)
 
-            local m = value
-            if (f and dv) then
-                m = value - (86400 * dv)
-            end
-
-            local t = {" mins", " hours"}
-            local e = math.min(#t, math.floor(math.log(m, 60)))
-            local d = t[e] or " secs"
-
-            local v = (f or "") .. math.floor(m / (60 ^ e)) .. d
-            Time.Value = v
-        end)
-
-		Time.Parent = leaderstats
-        Session:Update(key, response or 0)
-        
+    -- Fetch the player's saved data for this key
+    Connect:fetch(key, function (self, response)
         Connect.tick(1, function ()
-            local currentValue = Session:Get(key)
-            Session:Update(key, currentValue + 1)
+            -- Increase the points each second
+            Session:Update(key, (Session:Get(key) or response or 0) + 1)
         end)
-	end)
-	
-	DataStoreRequest:onError(function (self, err)
-		warn(err)
-		
-		if self.retries == 5 then
-			self:CancelRetry()
-		end
-	end)
+    end)
 end)
 
-Connect.new("Players.PlayerRemoving", function (self, Player)
-    local key = Session:Key(Player.UserId, "Time")
-
-    local DataStoreRequest = Connect:Store(Player.UserId, Session:Get(key), function (self, response)
-        return response
-    end)
-
-    DataStoreRequest:onError(function (self, err)
-        warn(err)
+-- Register the PlayerRemoving connection
+Connect:once("Players.PlayerRemoving", function (self, Player)
+    local key = Session:Key(Player.UserId, "Points")
+    local value = Session:Get(key)
     
-        if self.retries == 5 then
-            self:CancelRetry()
-        end
+    -- Save the player's points
+    Connect:store(key, value, function (self, response)
+        -- Remove the key from session storage, it's no longer needed
+        Session:Remove(key)
     end)
-end)
-
-game:BindToClose(function ()
-    for userId, userData in next, Session.Data do
-        print("userData.Time:", userData.Time)
-
-        local DataStoreRequest = Connect:Store(userId, userData.Time, function (self, response)
-            return response
-        end)
-
-        DataStoreRequest:onError(function (self, err)
-            warn(err)
-		
-            if self.retries == 5 then
-                self:CancelRetry()
-            end
-        end)
-    end
 end)</string>
       </Properties>
-      <Item class="Script" referent="22">
+      <Item class="Script" referent="23">
         <Properties>
           <string name="Name">datastore</string>
           <token name="RunContext">0</token>
@@ -1528,23 +1569,152 @@ end)</string>
 -- print(nest.Data)</string>
         </Properties>
       </Item>
+      <Item class="Script" referent="24">
+        <Properties>
+          <string name="Name">old</string>
+          <token name="RunContext">0</token>
+          <string name="Source">-- local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+-- Connect:UseDataStore(4)
+
+-- local Session = Connect:Session()
+
+-- Session:onUpdate(function (self, key, value)
+--     print(`{key}: {value}`)
+-- end)
+
+-- Connect.new("PlayerAdded", function (self, Player)
+--     local key = Session:Key(Player.UserId)
+--     print(key);
+
+-- 	local leaderstats = Instance.new("IntValue")
+-- 	leaderstats.Name = "leaderstats"
+-- 	leaderstats.Parent = Player
+
+--     local DataStoreRequest = Connect:Fetch(Player.UserId, function (self, response)
+--         local Time = Instance.new("StringValue")
+-- 		Time.Name = "Time"
+
+-- 		Session:onUpdate(key, function (self, value)
+--             local value = tonumber(value)
+
+--             local f,dv
+--             if (value >= 86400) then
+--                 dv = math.floor(value/86400)
+--                 f = dv .. " day" .. (if tonumber(dv) == 1 then "" else "s") .. " "
+--             end
+
+--             local m = value
+--             if (f and dv) then
+--                 m = value - (86400 * dv)
+--             end
+
+--             local t = {" min", " hour"}
+--             local e = math.min(#t, math.floor(math.log(m, 60)))
+--             local d = t[e] or (if m == 0 then "" else " sec")
+
+--             local v = (f or "") .. (if m and m > 0 then math.floor(m / (60 ^ e)) else "")
+--             Time.Value = v .. d .. (if (not tonumber(m) or tonumber(m) &lt;= 1) then "" else "s")
+--         end)
+        
+--         Connect.tick(1, function ()
+--             -- need to cancel this when the player
+--             -- has left the game
+--             print(key)
+--             print(Session:Get(key))
+--             print(response);
+
+--             local value = (Session:Get(key) or (response or 0)) + 1
+
+--             if (value % 180 == 0) then
+--                 -- autosave every 3 minutes
+--                 Connect:Store(Player.UserId, value, function (self, response)
+--                     return response
+--                 end)
+--             end
+
+--             Session:Update(key, value)
+--         end, function ()
+--             -- Cancel running if the player has left
+--             return not (Player and Player.Parent)
+--         end)
+
+--         Time.Parent = leaderstats
+-- 	end)
+	
+-- 	DataStoreRequest:onError(function (self, err)
+-- 		warn(err)
+		
+-- 		if self.retries == 5 then
+-- 			self:CancelRetry()
+-- 		end
+-- 	end)
+-- end)
+
+-- Connect:once("Players.PlayerRemoving", function (self, Player)
+--     local key = Session:Key(Player.UserId)
+
+-- 	local value = Session:Get(key)
+-- 	Session:Remove(key)
+
+-- 	local DataStoreRequest = Connect:Store(Player.UserId, value, function (self, response)
+--         print(response)
+--         return response
+--     end)
+
+--     DataStoreRequest:onError(function (self, err)
+--         warn(err)
+    
+--         if self.retries == 5 then
+--             self:CancelRetry()
+--         end
+--     end)
+
+--     print(`Here: {DataStoreRequest.response}`);
+--     DataStoreRequest:sync()
+--     print(`Done: {DataStoreRequest.response}`);
+-- end)
+
+-- game:BindToClose(function ()
+--     -- this is problematic as Session.Data is nested
+--     for userId, userData in next, Session.Data do
+--         Session:Remove(userId)
+
+--         local DataStoreRequest = Connect:Store(userId, userData, function (self, response)
+--             return response
+--         end)
+
+--         DataStoreRequest:onError(function (self, err)
+--             warn(err)
+		
+--             if self.retries == 3 then
+--                 self:CancelRetry()
+--             end
+--         end)
+
+--         DataStoreRequest:sync()
+--     end
+-- end)</string>
+        </Properties>
+      </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="23">
+  <Item class="SoundService" referent="25">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="24">
+  <Item class="StarterPlayer" referent="26">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="25">
+    <Item class="StarterPlayerScripts" referent="27">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="26">
+      <Item class="LocalScript" referent="28">
         <Properties>
           <string name="Name">client</string>
           <string name="Source">print("Hello world, from client!")</string>
@@ -1552,12 +1722,12 @@ end)</string>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="27">
+  <Item class="Workspace" referent="29">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
     </Properties>
-    <Item class="Part" referent="28">
+    <Item class="Part" referent="30">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>
