@@ -81,7 +81,7 @@ local Session = Connect:Session()
 
 -- Register a global onUpdate handler
 Session:onUpdate(function (self, key, value)
-    -- print(`{key}: {value}`)
+    print(`{key}: {value}`)
 end)
 
 -- Register the PlayerAdded Connection
