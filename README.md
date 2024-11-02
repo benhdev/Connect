@@ -156,7 +156,7 @@ Retrieving a value from the DataStore
 
 ```lua
 local DataStoreRequest = Connect:fetch(key, function (self, response)
-    print(`{key}: {response}`)
+    Session:store(key, response)
 end)
 ```
 

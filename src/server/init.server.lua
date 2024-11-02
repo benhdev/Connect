@@ -12,7 +12,7 @@ Session:onUpdate(function (self, key, value)
 end)
 
 -- Register the PlayerAdded Connection
-Connect:create("PlayerAdded", function (self, Player)
+local PlayerAdded = Connect:create("PlayerAdded", function (self, Player)
     -- Create a Key for the Player's points
     local key = Session:key(Player.UserId, "Points")
 
@@ -31,6 +31,12 @@ Connect:create("PlayerAdded", function (self, Player)
             return not (Player and Player.Parent)
         end)
     end)
+end)
+
+Connect.tick(5, function ()
+    print(PlayerAdded:AverageRunTime())
+end, function () 
+    return not PlayerAdded.Connected
 end)
 
 -- Register the PlayerRemoving connection
