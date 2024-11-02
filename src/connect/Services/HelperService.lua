@@ -9,9 +9,11 @@ type object = table<string>
 local framework: module = {} :: module
 local HelperService: module = {} :: module
 
+local session = {}
+
 function framework.Session (self, object: object?)
-	local storage: object = {}
-	storage.Data = object or {}
+	local storage: object = session
+	storage.Data = object or session.Data or {}
 
 	function storage:Get (key): any?
 		local key = tostring(key)
