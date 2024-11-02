@@ -49,5 +49,3 @@ Connect:create("Players.PlayerRemoving", function (self, Player)
     end)
 end)
 
-Connect:DebugEnabled("internal")
-Connect:Counter()
