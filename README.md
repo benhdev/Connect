@@ -165,7 +165,7 @@ print(DataStoreRequest:finished())
 
 > [!TIP]
 >
-> <sup><sub>_Add your tiny text_</sub></sup>
+> <sup><sub>_Example_</sub></sup>
 >
 > ```lua
 > local ReplicatedStorage = game:GetService("ReplicatedStorage")
