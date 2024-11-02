@@ -1429,7 +1429,7 @@ return module
       <Properties>
         <string name="Name">server</string>
         <token name="RunContext">0</token>
-        <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
 Connect:UseDataStore(5)
@@ -1480,8 +1480,7 @@ Connect:create("Players.PlayerRemoving", function (self, Player)
     end)
 end)
 
-Connect:DebugEnabled("internal")
-Connect:Counter()</string>
+]]></string>
       </Properties>
       <Item class="Script" referent="23">
         <Properties>
