@@ -25,12 +25,10 @@ Event:listen("fetch", function (Player)
 
     Points.Parent = Leaderstats
     Leaderstats.Parent = Player
-
-    return false
 end)
 
-Event:listen("fetch.finished", function (response)
-    print("fetch.finished", response)
+Event:listen("fetch.finished", function ()
+    print("fetch.finished")
 end)
 
 Event:listen('store', function (Player)

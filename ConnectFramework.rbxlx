@@ -427,9 +427,23 @@ return {
                 self.listeners[key] = callback
             end,
 
+            find = function (self, key)
+                if (self.listeners[key]) then
+                    return self.listeners[key]
+                end
+
+                return nil
+            end,
+
             fire = function (self, key, ...)
                 if self.listeners[key] then
-                    return self.listeners[key](...)
+                    local response = table.pack(self.listeners[key](...))
+
+                    if self:find(`{key}.finished`) then
+                        self.listeners[`{key}.finished`](unpack(response))
+                    end
+
+                    return unpack(response)
                 else
                     warn(`{key} Event not found`)
                 end
@@ -1732,15 +1746,25 @@ Event:listen("fetch", function (Player)
     Leaderstats.Parent = Player
 end)
 
+Event:listen("fetch.finished", function ()
+    print("fetch.finished")
+end)
+
 Event:listen('store', function (Player)
     local key = Session:key(Player.UserId, "Points")
     local value = Session:find(key)
 
     -- Save the player's points
-    Connect:store(key, value, function (self, response)
+    local DataStoreRequest = Connect:store(key, value, function (self, response)
         -- Remove the key from session storage, it's no longer needed
         Session:remove(key)
     end)
+
+    DataStoreRequest:sync()
+end)
+
+Event:listen("store.finished", function ()
+    print(`store.finished`)
 end)
 
 Event:listen("createLeaderboard", function (key)
@@ -1758,6 +1782,10 @@ Event:listen("createLeaderboard", function (key)
     end)
 
     return Leaderstats, Points
+end)
+
+Event:listen("createLeaderboard.finished", function ()
+    print("createLeaderboard.finished")
 end)</string>
         </Properties>
       </Item>
