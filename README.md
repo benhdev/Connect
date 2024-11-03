@@ -65,6 +65,23 @@ local connection = Connect:create(key: instance | string, signal: RBXScriptSigna
 end)
 ```
 
+Disconnect a connection
+
+```lua
+connection:Disconnect()
+```
+
+or from within the connection itself
+
+```lua
+Connect:create(key: instance | string, signal: RBXScriptSignal | string, function (self, ...)
+    self:Disconnect()
+end)
+```
+
+> [!TIP]
+> The following methods are also available from within the connection itself
+
 Listen to when a connection is closed
 
 ```lua
@@ -77,6 +94,12 @@ Get the last Arguments passed to the connection
 
 ```lua
 connection:GetArguments()
+```
+
+Check if the connection has errored
+
+```lua
+connection:HasError()
 ```
 
 Get the total number of errors across all runs
