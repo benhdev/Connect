@@ -280,6 +280,9 @@ Event:dispatch("action", 1, 2)
 Event:fire("action", 1, 2)
 ```
 
+> [!NOTE]
+> More functionality for Events will be coming soon!
+
 ### Data Storage & Retrieval
 
 Connect provides various utilities to make handling datastores easier
