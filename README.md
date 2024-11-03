@@ -16,7 +16,6 @@ https://www.roblox.com/library/13518158092/ConnectFramework
 - Support for [Rojo](https://rojo.space/docs)
 - Introduction of [Sessions](#handling-sessions) & [Events](#using-events)
 - Introduction of initial [Data Storage & Retrieval](#data-storage--retrieval) functionality
-- Case-insensitive support for most available methods
 
 ## Getting Started
 
