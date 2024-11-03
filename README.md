@@ -56,14 +56,14 @@ end)
 
 Registering a connection can be done in various different ways
 
+> [!NOTE]
+> The "key" argument is always optional
+
 ```lua
 local connection = Connect:create(key: instance | string, signal: RBXScriptSignal | string, function (self, ...)
 
 end)
 ```
-
-> [!NOTE]
-> The "key" argument is always optional
 
 ```lua
 local CollectionService = game:GetService("CollectionService")
