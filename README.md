@@ -386,7 +386,7 @@ print(DataStoreRequest:finished())
 > [!TIP]
 > or we can utilize events and separate the functionality into a modular style
 
-> <sub>server.lua</sub>
+> <sub>init.server.lua</sub>
 >
 > ```lua
 > local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -407,7 +407,7 @@ print(DataStoreRequest:finished())
 > end)
 > ```
 
-> <sub>events.lua</sub>
+> <sub>events.server.lua</sub>
 >
 > ```lua
 > local ReplicatedStorage = game:GetService("ReplicatedStorage")
