@@ -322,6 +322,8 @@ print(DataStoreRequest:finished())
 
 #### Examples
 
+> <sub>init.server.lua</sub>
+>
 > ```lua
 > local ReplicatedStorage = game:GetService("ReplicatedStorage")
 > local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
