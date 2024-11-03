@@ -62,7 +62,7 @@ local connection = Connect:create(key: instance | string, signal: RBXScriptSigna
 end)
 ```
 
-> [!INFO]
+> [!NOTE]
 > The "key" argument is always optional
 
 ```lua
