@@ -281,13 +281,14 @@ Event:dispatch("action", 1, 2)
 Event:fire("action", 1, 2)
 ```
 
-You may also use the `.finished` utility for listening to when an Event has completed.
-
-```lua
-Event:listen("action.finished", function (response)
-    print(response) -- 3
-end)
-```
+> [!TIP]
+> You may also use the `.finished` utility for listening to when an Event has completed.
+>
+> ```lua
+> Event:listen("action.finished", function (response)
+>     print(response) -- 3
+> end)
+> ```
 
 > [!NOTE]
 > More functionality for events will be coming soon!
