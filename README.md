@@ -1,6 +1,6 @@
 # Connect Framework V1.2
 
-![version](https://badgen.net/badge/version/v1.1/gray)
+![version](https://badgen.net/badge/version/v1.2/gray)
 [![Twitter](https://badgen.net/badge/Twitter/@WebmotionRBLX/blue?icon=twitter)](https://twitter.com/@WebmotionRBLX)
 
 A helpful framework to handle core game functionality, RBXScriptSignal Connections, and help to prevent memory leaks.
