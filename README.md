@@ -10,10 +10,8 @@ https://www.roblox.com/library/13518158092/ConnectFramework
 
 #### v1.2 updates
 
-[#data-storage--retrieval](Data Storage & Retrieval)
-
 - Introduction of Events and Sessions
-- Introduction of initial functionality `Connect:fetch()` & `Connect:store()`
+- Introduction of initial [Data Storage & Retrieval](#data-storage--retrieval) functionality `Connect:fetch()` & `Connect:store()`
 - Case-insensitive support for most available methods
 
 ## Getting Started
