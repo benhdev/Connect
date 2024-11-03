@@ -25,6 +25,12 @@ Event:listen("fetch", function (Player)
 
     Points.Parent = Leaderstats
     Leaderstats.Parent = Player
+
+    return false
+end)
+
+Event:listen("fetch.finished", function (response)
+    print("fetch.finished", response)
 end)
 
 Event:listen('store', function (Player)
@@ -32,10 +38,16 @@ Event:listen('store', function (Player)
     local value = Session:find(key)
 
     -- Save the player's points
-    Connect:store(key, value, function (self, response)
+    local DataStoreRequest = Connect:store(key, value, function (self, response)
         -- Remove the key from session storage, it's no longer needed
         Session:remove(key)
     end)
+
+    DataStoreRequest:sync()
+end)
+
+Event:listen("store.finished", function ()
+    print(`store.finished`)
 end)
 
 Event:listen("createLeaderboard", function (key)
@@ -53,4 +65,8 @@ Event:listen("createLeaderboard", function (key)
     end)
 
     return Leaderstats, Points
+end)
+
+Event:listen("createLeaderboard.finished", function ()
+    print("createLeaderboard.finished")
 end)

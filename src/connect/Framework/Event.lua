@@ -94,9 +94,23 @@ return {
                 self.listeners[key] = callback
             end,
 
+            find = function (self, key)
+                if (self.listeners[key]) then
+                    return self.listeners[key]
+                end
+
+                return nil
+            end,
+
             fire = function (self, key, ...)
                 if self.listeners[key] then
-                    return self.listeners[key](...)
+                    local response = table.pack(self.listeners[key](...))
+
+                    if self:find(`{key}.finished`) then
+                        self.listeners[`{key}.finished`](unpack(response))
+                    end
+
+                    return unpack(response)
                 else
                     warn(`{key} Event not found`)
                 end

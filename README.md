@@ -267,6 +267,7 @@ Registering an Event Listener
 ```lua
 Event:listen("action", function (arg1, arg2)
     print(arg1, arg2)
+    return arg1 + arg2
 end)
 ```
 
@@ -278,6 +279,14 @@ Event:dispatch("action", 1, 2)
 
 ```lua
 Event:fire("action", 1, 2)
+```
+
+You may also use the `.finished` utility for listening to when an Event has completed.
+
+```lua
+Event:listen("action.finished", function (response)
+    print(response) -- 3
+end)
 ```
 
 > [!NOTE]
