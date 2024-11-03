@@ -54,6 +54,17 @@ Connect:parallel("Players.PlayerAdded", function (self, Player)
 end)
 ```
 
+Registering a connection can be done in various different ways
+
+```lua
+local connection = Connect:create(key: instance | string, signal: RBXScriptSignal | string, function (self, ...)
+
+end)
+```
+
+> [!INFO]
+> The "key" argument is always optional
+
 ```lua
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
