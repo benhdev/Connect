@@ -386,8 +386,6 @@ print(DataStoreRequest:finished())
 > [!TIP]
 > or we can utilize events and separate the functionality into a modular style
 
-> <sub>server.lua</sub>
->
 > ```lua
 > local ReplicatedStorage = game:GetService("ReplicatedStorage")
 > local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
@@ -406,9 +404,9 @@ print(DataStoreRequest:finished())
 >     Event:dispatch("store", Player)
 > end)
 > ```
-
-> <sub>events.lua</sub>
 >
+> <sub>server.lua</sub>
+
 > ```lua
 > local ReplicatedStorage = game:GetService("ReplicatedStorage")
 > local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
@@ -467,6 +465,8 @@ print(DataStoreRequest:finished())
 >     return Leaderstats, Points
 > end)
 > ```
+>
+> <sub>events.lua</sub>
 
 ### Error Handling
 
