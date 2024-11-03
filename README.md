@@ -8,7 +8,7 @@ https://www.roblox.com/library/13518158092/ConnectFramework
 
 [Rojo](https://github.com/rojo-rbx/rojo) 7.4.0-rc3.
 
-### Updates - v1.2
+### Updates v1.2
 
 - Introduction of Events and Sessions
 - Introduction of initial Data Storage and Retrieval functionality `Connect:fetch()` & `Connect:store()`
