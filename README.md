@@ -79,10 +79,9 @@ Connect:create(key: instance | string, signal: RBXScriptSignal | string, functio
 end)
 ```
 
-<sub>
 > [!TIP]
-> The following methods are also available from within the connection itself
-</sub>
+>
+> <sub>The following methods are also available from within the connection itself</sub>
 
 Listen to when a connection is closed
 
