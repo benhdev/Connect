@@ -72,8 +72,23 @@ function module:Initialize()
         return self:AddConnection(...)
     end
 
-    function self.tick (interval: number, callback, Cancel): module?
-        return self:CreateCoreLoop({ Interval = interval, Cancel = Cancel }, callback)
+    function self.tick (interval, callback, Cancel): module?
+        if typeof(interval) == "function" then
+            Cancel = callback
+            callback = interval
+            interval = 1
+        end
+
+        local counter = 0
+        return self:CreateCoreLoop({
+            Interval = interval,
+            Cancel = Cancel,
+            StartInstantly = true,
+            Arguments = function ()
+                counter += 1 
+                return counter
+            end
+        }, callback)
     end
 
     return self
@@ -315,6 +330,126 @@ return module</string>
         </Item>
         <Item class="ModuleScript" referent="7">
           <Properties>
+            <string name="Name">Event</string>
+            <string name="Source"><![CDATA[--!strict
+type table<T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? } 
+type module = typeof(setmetatable({}, {} :: mt)) & table<any>
+type array = table<number>
+type object = table<string>
+
+local events: module = {} :: module
+events.RandomGenerator = Random.new(os.time())
+
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+
+function events.GetRemote (self: module, name: string): RemoteEvent | RemoteFunction
+	return ReplicatedStorage:WaitForChild(name, 5)
+end
+
+function events.FireClient (self: module, key: string, client: Player, data: object?)
+	local remote = self:GetRemote(key)
+	remote:FireClient(client, data)
+end
+
+function events.FireAllClients (self: module, key: string, data: object?)
+	local remote = self:GetRemote(key)
+	remote:FireAllClients(data)
+end
+
+function events.FireServer (self: module, key: string, data: any?)
+	local remote = self:GetRemote(key)
+	remote:FireServer(data)
+end
+
+function events.OnClientEvent (self: module, key: string, callback: (...any?) -> ...any?)
+	local remote = self:GetRemote(key)
+	remote.OnClientEvent:Connect(callback)
+end
+
+function events.InvokeServer (self: module, key: string, data: object?): any
+	local remote = self:GetRemote(key)
+	return remote:InvokeFunction(data)
+end
+
+function events.RandomInteger (self: module, min: number, max: number): number
+	return self.RandomGenerator:NextInteger(min, max)
+end
+
+function events.RandomNumber (self: module, ...: number?): number
+	return self.RandomGenerator:NextNumber(...)
+end
+
+function events.RoundDecimal (self: module, num: number, decimals: number): number
+	local multiplier = 1
+	for i = 1, decimals do
+		multiplier *= 10
+	end
+	
+	return math.floor(num * multiplier) / multiplier 
+end
+	
+function events.FormatNumber (self: module, num: number): string
+	local keys = {"K", "M", "B", "T", "Q"}
+
+	if num == 0 then
+		return "0 :("
+	end
+
+	local exponent = math.min(#keys, math.floor(math.log(num, 1000)))
+	local key = keys[exponent] or ""
+
+	return self:RoundDecimal(num / (1000 ^ exponent), 2) .. key
+end
+
+function events.LoadModuleInstance (self: module)
+	local InsertService = game:GetService("InsertService")
+	local ModuleModel = InsertService:LoadAsset(13412295730)
+
+	local Module = ModuleModel:FindFirstChildWhichIsA("ModuleScript")
+	Module.Name = "SharedModule"
+	Module.Parent = game:GetService("ReplicatedStorage")
+end
+
+local globalEvents = {}
+
+return {
+    -- EventHelpers = events,
+
+    event = function (self, key)
+        key = key or "global"
+
+        local event = globalEvents[key] or {
+            name = key,
+
+            listen = function (self, key, callback)
+                self.listeners[key] = callback
+            end,
+
+            fire = function (self, key, ...)
+                if self.listeners[key] then
+                    return self.listeners[key](...)
+                else
+                    warn(`{key} Event not found`)
+                end
+            end,
+
+            listeners = {},
+        }
+
+        event.dispatch = event.fire
+
+        globalEvents[key] = event
+
+        return event
+    end
+}
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="8">
+          <Properties>
             <string name="Name">GetArguments</string>
             <string name="Source"><![CDATA[return function (self: module, ...): (any, RBXScriptSignal, (module, ...any?) -> any?)
 	local key, signal, callback: (...any?) -> any?, onError: (...any?) -> any? = ...
@@ -343,7 +478,7 @@ end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="8">
+        <Item class="ModuleScript" referent="9">
           <Properties>
             <string name="Name">Pointers</string>
             <string name="Source">--!strict
@@ -374,7 +509,7 @@ end
 return module</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="9">
+        <Item class="ModuleScript" referent="10">
           <Properties>
             <string name="Name">ProxyConnection</string>
             <string name="Source"><![CDATA[--!strict
@@ -652,7 +787,7 @@ return module
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="10">
+        <Item class="ModuleScript" referent="11">
           <Properties>
             <string name="Name">Signal</string>
             <string name="Source"><![CDATA[--!strict
@@ -705,11 +840,11 @@ return module
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="11">
+      <Item class="Folder" referent="12">
         <Properties>
           <string name="Name">Services</string>
         </Properties>
-        <Item class="ModuleScript" referent="12">
+        <Item class="ModuleScript" referent="13">
           <Properties>
             <string name="Name">DataService</string>
             <string name="Source"><![CDATA[--!strict
@@ -884,7 +1019,7 @@ return framework
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">FeatureService</string>
             <string name="Source">-- --!strict
@@ -1123,7 +1258,7 @@ return framework
 return {}</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="14">
+        <Item class="ModuleScript" referent="15">
           <Properties>
             <string name="Name">HelperService</string>
             <string name="Source"><![CDATA[--!strict
@@ -1137,9 +1272,11 @@ type object = table<string>
 local framework: module = {} :: module
 local HelperService: module = {} :: module
 
+local session = {}
+
 function framework.Session (self, object: object?)
-	local storage: object = {}
-	storage.Data = object or {}
+	local storage: object = session
+	storage.Data = object or session.Data or {}
 
 	function storage:Get (key): any?
 		local key = tostring(key)
@@ -1252,6 +1389,7 @@ function framework.Session (self, object: object?)
 	storage.store = storage.Update
 	storage.save = storage.Update
 	storage.set = storage.Update
+	storage.update = storage.Update
 
 	storage.get = storage.Get
 	storage.fetch = storage.Get
@@ -1303,11 +1441,11 @@ return framework
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="15">
+      <Item class="Folder" referent="16">
         <Properties>
           <string name="Name">Threads</string>
         </Properties>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">Delay</string>
             <string name="Source">return function (self: module, seconds: number, key: string, callback: () -> ()): thread
@@ -1320,7 +1458,7 @@ return framework
 end</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">Thread</string>
             <string name="Source">--!strict
@@ -1352,11 +1490,11 @@ return module</string>
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="18">
+      <Item class="Folder" referent="19">
         <Properties>
           <string name="Name">Validation</string>
         </Properties>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Validate</string>
             <string name="Source"><![CDATA[--!strict
@@ -1431,75 +1569,40 @@ return module
         </Item>
       </Item>
     </Item>
-    <Item class="Folder" referent="20">
+    <Item class="Folder" referent="21">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="21">
+  <Item class="ServerScriptService" referent="22">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Script" referent="22">
+    <Item class="Script" referent="23">
       <Properties>
         <string name="Name">server</string>
         <token name="RunContext">0</token>
-        <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
+        <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
-Connect:UseDataStore(5)
 
 -- Create the session
-local Session = Connect:Session()
-
--- Register a global onUpdate handler
-Session:onUpdate(function (self, key, value)
-    print(`{key}: {value}`)
-end)
+local Session = Connect:session()
+local Event = Connect:event()
 
 -- Register the PlayerAdded Connection
-Connect:create("PlayerAdded", function (self, Player)
-    Connect:create(Player, "CharacterAdded", function (self, Character)
-        Connect:create(Character, "RunService.Stepped", function (self, step)
-            -- This will only run while the character exists, 
-            -- and automatically disconnects when the character no longer exists
-        end)
-    end)
-
-    -- Create a Key for the Player's points
-    local key = Session:key(Player.UserId, "Points")
-
-    -- Register a Key specific onUpdate handler
-    Session:onUpdate(key, function (self, value)
-
-    end)
-
-    -- Fetch the player's saved data for this key
-    Connect:fetch(key, function (self, response)
-        Connect.tick(1, function ()
-            print(self:finished())
-            -- Increase the points each second
-            Session:store(key, (Session:Get(key) or response or 0) + 1)
-        end)
-    end)
+local connection = Connect:create("PlayerAdded", function (self, Player)
+    Event:dispatch("fetch", Player)
 end)
 
 -- Register the PlayerRemoving connection
-Connect:create("Players.PlayerRemoving", function (self, Player)
-    local key = Session:key(Player.UserId, "Points")
-    local value = Session:find(key)
-    
-    -- Save the player's points
-    Connect:store(key, value, function (self, response)
-        -- Remove the key from session storage, it's no longer needed
-        Session:remove(key)
-    end)
+Connect:create("PlayerRemoving", function (self, Player)
+    Event:dispatch("store", Player)
 end)
 
-]]></string>
+-- Connect:DebugEnabled("internal")</string>
       </Properties>
-      <Item class="Script" referent="23">
+      <Item class="Script" referent="24">
         <Properties>
           <string name="Name">datastore</string>
           <token name="RunContext">0</token>
@@ -1596,7 +1699,69 @@ end)
 -- print(nest.Data)</string>
         </Properties>
       </Item>
-      <Item class="Script" referent="24">
+      <Item class="Script" referent="25">
+        <Properties>
+          <string name="Name">events</string>
+          <token name="RunContext">0</token>
+          <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+-- Create the session
+local Session = Connect:session()
+local Event = Connect:event()
+
+Event:listen("fetch", function (Player)
+    local key = Session:key(Player.UserId, "Points")
+    -- Dispatch the Event which creates the leaderboard
+    local Leaderstats, Points = Event:dispatch("createLeaderboard", key)
+    -- Fetch the player's saved data for this key
+    local DataStoreRequest = Connect:fetch(key, function (self, response)
+        Connect.tick(function (i)
+            -- Increase the points each second
+            Session:update(key, (Session:find(key) or response or 0) + 1)
+        end, function ()
+            -- Cancel running if the player has left
+            return not (Player and Player.Parent)
+        end)
+    end)
+
+    -- Wait for the DataStoreRequest to finish
+    DataStoreRequest:sync()
+
+    Points.Parent = Leaderstats
+    Leaderstats.Parent = Player
+end)
+
+Event:listen('store', function (Player)
+    local key = Session:key(Player.UserId, "Points")
+    local value = Session:find(key)
+
+    -- Save the player's points
+    Connect:store(key, value, function (self, response)
+        -- Remove the key from session storage, it's no longer needed
+        Session:remove(key)
+    end)
+end)
+
+Event:listen("createLeaderboard", function (key)
+    -- Create the leaderboard
+    local Leaderstats = Instance.new("StringValue")
+    Leaderstats.Name = "leaderstats"
+
+    -- Create the points value for the leaderboard
+    local Points = Instance.new("IntValue")
+    Points.Name = "Points"
+
+    -- Register a Key specific onUpdate handler
+    Session:onUpdate(key, function (self, value)
+        Points.Value = value
+    end)
+
+    return Leaderstats, Points
+end)</string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="26">
         <Properties>
           <string name="Name">old</string>
           <token name="RunContext">0</token>
@@ -1727,21 +1892,21 @@ end)
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="25">
+  <Item class="SoundService" referent="27">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="26">
+  <Item class="StarterPlayer" referent="28">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="27">
+    <Item class="StarterPlayerScripts" referent="29">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="28">
+      <Item class="LocalScript" referent="30">
         <Properties>
           <string name="Name">client</string>
           <string name="Source">print("Hello world, from client!")</string>
@@ -1749,12 +1914,12 @@ end)
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="29">
+  <Item class="Workspace" referent="31">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
     </Properties>
-    <Item class="Part" referent="30">
+    <Item class="Part" referent="32">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>
