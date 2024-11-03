@@ -1,0 +1,1969 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <Color3 name="Ambient">
+        <R>0</R>
+        <G>0</G>
+        <B>0</B>
+      </Color3>
+      <float name="Brightness">2</float>
+      <bool name="GlobalShadows">true</bool>
+      <bool name="Outlines">false</bool>
+      <token name="Technology">1</token>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="ModuleScript" referent="2">
+      <Properties>
+        <string name="Name">ConnectFramework</string>
+        <string name="Source"><![CDATA[--!strict
+type table<T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) & table<any>
+type array = table<number>
+type object = table<string>
+--
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local module: module = {} :: module
+
+module.framework = {}
+
+function module:Initialize()
+    for _,item in next, script:GetDescendants() do
+        if item:IsA("ModuleScript") then
+            local package = require(item) :: module
+            if typeof(package) == "function" then
+                self.framework[item.Name] = package
+            end
+
+            if typeof(package) == "table" then
+                for packageKey,packageItem in next, package do
+                    self.framework[packageKey] = packageItem
+                end
+            end
+        end
+    end
+
+    setmetatable(self.framework, { __index = self.framework:setPointers() })
+    setmetatable(self, { __index = self.framework; __call = self.framework.AddConnection :: (any) -> any; })
+
+    self:Thread("MODULE_SECURITY", coroutine.create(self.Cleanup))
+    coroutine.resume(self:Thread("MODULE_SECURITY"), self)
+
+    for _,signalIdentifier in next, {"Players.PlayerRemoving", "game.DescendantRemoving"} do
+        self:GetSignal(signalIdentifier):Connect(function(arg)
+            if signalIdentifier == "Players.PlayerRemoving" then
+                self:DisconnectByKey(arg.UserId)
+            end
+
+            return self:DisconnectByKey(arg)
+        end)
+    end
+
+    function self.new(...): module?
+        return self:AddConnection(...)
+    end
+
+    function self.tick (interval, callback, Cancel): module?
+        if typeof(interval) == "function" then
+            Cancel = callback
+            callback = interval
+            interval = 1
+        end
+
+        local counter = 0
+        return self:CreateCoreLoop({
+            Interval = interval,
+            Cancel = Cancel,
+            StartInstantly = true,
+            Arguments = function ()
+                counter += 1 
+                return counter
+            end
+        }, callback)
+    end
+
+    return self
+end
+
+return module:Initialize()
+]]></string>
+      </Properties>
+      <Item class="Folder" referent="3">
+        <Properties>
+          <string name="Name">Framework</string>
+        </Properties>
+        <Item class="ModuleScript" referent="4">
+          <Properties>
+            <string name="Name">Cleanup</string>
+            <string name="Source">return function (self: module): ()
+	while task.wait(30) do
+		for key, connectionList in next, self.connections do
+			-- check any instances were destroyed and not disconnected properly
+			-- just incase /e shrug
+			if typeof(key) == "Instance" and key.Parent == nil then
+				self:DisconnectByKey(key)
+				key:Destroy() -- for extra safety
+
+				continue
+			end
+
+			-- remove any disconnected events from the table
+			for uuid, connection in next, connectionList do
+				if connection and not connection.Connected then
+					self.connections[key][uuid] = nil
+				end
+			end
+		end
+
+		-- remove any "dead" threads
+		for key, thread in next, self.threads do
+			if coroutine.status(thread) == "dead" then
+				self.threads[key] = nil
+			end
+
+			if typeof(key) == "Instance" and key.Parent == nil then
+				if coroutine.status(thread) ~= "dead" then
+					local success, errorMsg: any? = pcall(task.cancel, thread)
+					if not success then
+						warn("IMPOSSIBLE TO CANCEL THREAD: DEBUG NEEDED")
+					end
+
+					if coroutine.status(thread) == "normal" or coroutine.status(thread) == "suspended" then
+						local success, errorMsg: string? = coroutine.close(thread)
+						if not success then
+							warn("FAILED TO CLOSE COROUTINE: DEBUG NEEDED")
+						end
+					end
+
+					self.threads[key] = nil
+				end
+			end
+		end
+	end
+end</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="5">
+          <Properties>
+            <string name="Name">Connections</string>
+            <string name="Source"><![CDATA[--!strict
+type table<T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) & table<any>
+type array = table<number>
+type object = table<string>
+
+local module: module = {} :: module
+
+module.connections = {}
+
+function module.AddConnection (self: module, ...): module?
+	local key, signal, callback, onError = self:GetArguments(...)
+	return self:ProxyConnection(key, signal, signal.Connect, callback, onError)
+end
+
+function module.Parallel (self: module, ...): module
+	local key, signal, callback, onError = self:GetArguments(...)
+	return self:ProxyConnection(key, signal, signal.ConnectParallel, callback, onError)
+end
+
+function module.Once (self: module, ...): module
+	local key, signal, callback, onError = self:GetArguments(...)
+	return self:ProxyConnection(key, signal, signal.Once, callback, onError)
+end
+
+function module.CreateCoreLoop (self: module, options: { [string]: any }, callback: (...any?) -> ...any?)
+	local PreviousCoreRunTime: number = 0
+
+	local options = setmetatable(options, {
+		__index = {
+			Interval = 60;
+			StartInstantly = false;
+			Arguments = function ()
+				return
+			end;
+		};
+		__call = function (self, key, ...): any
+			if typeof(self[key]) == "function" then
+				local func = self[key]
+				return func()
+			end
+
+			return self[key]
+		end;
+	})
+
+	self:ValidateCoreParams(options, callback)
+
+	local Interval = options("StartInstantly") and 0 or options("Interval")
+
+	self("Stepped", function (self, runTime, step)
+		if (options("Cancel")) then
+			self:Disconnect()
+		end
+
+		if runTime >= (PreviousCoreRunTime + Interval) then
+			PreviousCoreRunTime, Interval = runTime, options("Interval")
+			callback(options("Arguments"))
+		end
+	end)
+end
+
+function module.GetConnections (self: module, key: string?): { [number]: RBXScriptConnection }
+	if not key then
+		local total = {}
+
+		for _,connectionList in next, self.connections do
+			total = table.move(connectionList, 1, #connectionList, #total + 1, total)
+		end
+
+		return total
+	end
+
+	if not self.connections[key] then
+		return {}
+	end
+
+	return self.connections[key]
+end
+
+function module.DisconnectByKey (self: module, key: any): nil
+	if not self.connections[key] then
+		return
+	end
+
+	for _,connection in next, self.connections[key] do
+		if not connection then
+			continue
+		end
+
+		connection:Disconnect()
+	end
+
+	self.connections[key] = nil
+	if self:DebugEnabled() == "internal" then
+		print("Disconnected: ", key)
+	end
+	
+	return
+end
+
+function module.DisconnectGlobal (self: module): nil
+	return self:DisconnectByKey("Global")
+end
+
+return module
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="6">
+          <Properties>
+            <string name="Name">Debug</string>
+            <string name="Source">--!strict
+type table&lt;T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) &amp; table&lt;any>
+type array = table&lt;number>
+type object = table&lt;string>
+
+local module: module = {} :: module
+
+local RunService = game:GetService("RunService")
+
+function module.DebugEnabled (self, v)
+	if typeof(v) == "boolean" or typeof(v) == "string" then
+		self.DebugMode = v
+	end
+
+	return self.DebugMode
+end
+
+function module.CallstackLevel (self)
+	local depth = 0
+
+	while true do
+		if not debug.info(3 + depth, "n") then
+			break
+		end
+
+		depth += 1
+	end
+
+	return depth
+end
+
+function module.Counter (self: module, t: number?, key: string?)
+	task.spawn(function ()
+		while task.wait(t or 5) do
+			local counter = 0
+
+			if not key then
+				for _,connectionList in next, self.connections do
+					for uuid,connection in next, connectionList do
+						counter += 1
+					end
+				end
+			else
+				for _,connection in next, self.connections[key] do
+					counter += 1
+				end
+			end
+
+			print((if RunService:IsClient() then "Client: " else "Server: ") .. tostring(counter))
+		end
+	end)
+end
+
+return module</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="7">
+          <Properties>
+            <string name="Name">Event</string>
+            <string name="Source"><![CDATA[--!strict
+type table<T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? } 
+type module = typeof(setmetatable({}, {} :: mt)) & table<any>
+type array = table<number>
+type object = table<string>
+
+local events: module = {} :: module
+events.RandomGenerator = Random.new(os.time())
+
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+
+function events.GetRemote (self: module, name: string): RemoteEvent | RemoteFunction
+	return ReplicatedStorage:WaitForChild(name, 5)
+end
+
+function events.FireClient (self: module, key: string, client: Player, data: object?)
+	local remote = self:GetRemote(key)
+	remote:FireClient(client, data)
+end
+
+function events.FireAllClients (self: module, key: string, data: object?)
+	local remote = self:GetRemote(key)
+	remote:FireAllClients(data)
+end
+
+function events.FireServer (self: module, key: string, data: any?)
+	local remote = self:GetRemote(key)
+	remote:FireServer(data)
+end
+
+function events.OnClientEvent (self: module, key: string, callback: (...any?) -> ...any?)
+	local remote = self:GetRemote(key)
+	remote.OnClientEvent:Connect(callback)
+end
+
+function events.InvokeServer (self: module, key: string, data: object?): any
+	local remote = self:GetRemote(key)
+	return remote:InvokeFunction(data)
+end
+
+function events.RandomInteger (self: module, min: number, max: number): number
+	return self.RandomGenerator:NextInteger(min, max)
+end
+
+function events.RandomNumber (self: module, ...: number?): number
+	return self.RandomGenerator:NextNumber(...)
+end
+
+function events.RoundDecimal (self: module, num: number, decimals: number): number
+	local multiplier = 1
+	for i = 1, decimals do
+		multiplier *= 10
+	end
+	
+	return math.floor(num * multiplier) / multiplier 
+end
+	
+function events.FormatNumber (self: module, num: number): string
+	local keys = {"K", "M", "B", "T", "Q"}
+
+	if num == 0 then
+		return "0 :("
+	end
+
+	local exponent = math.min(#keys, math.floor(math.log(num, 1000)))
+	local key = keys[exponent] or ""
+
+	return self:RoundDecimal(num / (1000 ^ exponent), 2) .. key
+end
+
+function events.LoadModuleInstance (self: module)
+	local InsertService = game:GetService("InsertService")
+	local ModuleModel = InsertService:LoadAsset(13412295730)
+
+	local Module = ModuleModel:FindFirstChildWhichIsA("ModuleScript")
+	Module.Name = "SharedModule"
+	Module.Parent = game:GetService("ReplicatedStorage")
+end
+
+local globalEvents = {}
+
+return {
+    -- EventHelpers = events,
+
+    event = function (self, key)
+        key = key or "global"
+
+        local event = globalEvents[key] or {
+            name = key,
+
+            listen = function (self, key, callback)
+                self.listeners[key] = callback
+            end,
+
+            find = function (self, key)
+                if (self.listeners[key]) then
+                    return self.listeners[key]
+                end
+
+                return nil
+            end,
+
+            fire = function (self, key, ...)
+                if self.listeners[key] then
+                    local response = table.pack(self.listeners[key](...))
+
+                    if self:find(`{key}.finished`) then
+                        self.listeners[`{key}.finished`](unpack(response))
+                    end
+
+                    return unpack(response)
+                else
+                    warn(`{key} Event not found`)
+                end
+            end,
+
+            listeners = {},
+        }
+
+        event.dispatch = event.fire
+
+        globalEvents[key] = event
+
+        return event
+    end
+}
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="8">
+          <Properties>
+            <string name="Name">GetArguments</string>
+            <string name="Source"><![CDATA[return function (self: module, ...): (any, RBXScriptSignal, (module, ...any?) -> any?)
+	local key, signal, callback: (...any?) -> any?, onError: (...any?) -> any? = ...
+
+	if typeof(signal) == "function" and self:GetSignal(key) then
+		onError = callback
+		callback = signal
+		signal = key
+		key = "Global"
+	end
+
+	signal = self:GetSignal(signal, key)
+
+	if self:DebugEnabled() == "internal" then
+		print(key, signal, callback, onError)
+	end
+
+	self:Validate(key, signal, callback, onError)
+
+	if not self.connections[key] then
+		self.connections[key] = setmetatable({}, {__mode = "k"})
+	end
+
+	return key, signal, callback :: (any) -> any?, onError :: (any) -> any?
+end
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="9">
+          <Properties>
+            <string name="Name">Pointers</string>
+            <string name="Source">--!strict
+type table&lt;T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) &amp; table&lt;any>
+type array = table&lt;number>
+type object = table&lt;string>
+
+local module: module = {} :: module
+
+module.pointers = {}
+
+function module.setPointers (self: module)
+    self.pointers.addConnection = self.AddConnection;
+    self.pointers.create = self.AddConnection;
+    self.pointers.once = self.Once;
+    self.pointers.parallel = self.Parallel;
+	self.pointers.createCoreLoop = self.CreateCoreLoop;
+	self.pointers.fetch = self.Fetch
+	self.pointers.store = self.Store
+    self.pointers.session = self.Session
+
+    return self.pointers
+end
+
+return module</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="10">
+          <Properties>
+            <string name="Name">ProxyConnection</string>
+            <string name="Source"><![CDATA[--!strict
+type table<T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) & table<any>
+type array = table<number>
+type object = table<string>
+
+local module: module = {} :: module
+
+local HttpService = game:GetService("HttpService")
+
+function module.CreateUUID (self: module, key: any, register): string
+	if not register then
+		register = self.connections
+	end
+    
+	local createKeyThread = coroutine.create(function ()
+		while true do
+			local finished: boolean = coroutine.yield(HttpService:GenerateGUID())
+
+			if finished then
+				break
+			end
+		end
+
+		return nil, true
+	end)
+
+	local uuid do
+		repeat
+			local success: boolean, value: string?, finished: boolean? = coroutine.resume(createKeyThread, uuid)
+
+			if finished then
+				break
+			end
+
+			if value and not register[key][value] then
+				uuid = value
+			end
+		until uuid
+	end
+
+	return uuid
+end
+
+function module.InRetry (self)
+	return self.onRetryScriptLine
+		and debug.info(self:CallstackLevel()-2, "n") == "pcall"
+		and debug.info(self:CallstackLevel()-0, "n") == "pcall"
+		and debug.info(self:CallstackLevel()-1, "s") == script:GetFullName()
+		and debug.info(self:CallstackLevel()-1, "l") == self.onRetryScriptLine
+end
+
+function module.InRetryResponse (self)
+	return setmetatable({}, {
+		__index = function (self, k)
+			return function ()
+				return self
+			end
+		end,
+	})
+end
+
+function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, onError): any?
+	local module = self
+
+	if self:DebugEnabled() == "internal" then
+		print('----------')
+		print(self:CallstackLevel(), debug.info(self:CallstackLevel(), "slnaf"))
+	end
+
+	if self:InRetry() then
+		-- This means its running in the ScheduleRetry functionality
+		-- TODO: Figure out if connection was already established
+		if self:DebugEnabled() == "internal" then
+			warn("Exiting AddConnection - within ScheduleRetry")
+		end
+
+		return self:InRetryResponse()
+	end
+
+	local uuid = self:CreateUUID(key)
+
+	local proxy: module, connection: RBXScriptConnection? = nil do
+		proxy = {
+			Key = key;
+			uuid = uuid;
+			CreatedAt = os.date();
+			CurrentCycleNo = 0;
+
+			ContextArguments = {};
+			Errors = {};
+			RunTimes = {};
+
+			AverageRunTime = function (self)
+				local total = 0
+				for _,runTime in next, self.RunTimes do
+					total += runTime
+				end
+
+				return if total == 0 then 0 else total / #self.RunTimes
+			end;
+
+			HasError = function (self)
+				return if #self.Errors > 0 then true else false
+			end;
+
+			TotalErrors = function (self)
+				return #self.Errors
+			end;
+
+			LastError = function (self)
+				return self.Errors[#self.Errors]
+			end;
+
+			IsRetrying = function (self)
+				return self.InRetry or false
+			end;
+
+			CompletedCycles = function (self): number
+				return #self.RunTimes
+			end;
+
+			CurrentCycle = function (self): number
+				return self.CurrentCycleNo
+			end;
+
+			GetArguments = function (self)
+				return unpack(self.ContextArguments)
+			end;
+
+			onError = function(self, handler)
+				onError = handler
+			end;
+
+			onRetryError = function (self, handler)
+				self.onRetryErrorHandler = handler
+			end;
+
+			Disconnect = function (self)
+				if connection and typeof(connection) == "RBXScriptConnection" then
+					connection:Disconnect()
+
+					if not connection.Connected and module.connections[key][uuid] then
+						module.connections[key][uuid] = nil
+						-- proxy.isRunning is false, so we run the onDisconnectHandler method here
+						if self.onDisconnectHandler and not self.isRunning and not self.HasDisconnected then
+							self:onDisconnectHandler()
+						end
+					end
+				end
+			end;
+
+			onDisconnectHandler = function (self)
+				self.HasDisconnected = true
+
+				if connection and not connection.Connected and module.connections[key] and module.connections[key][uuid] then
+					-- fail safe
+					module.connections[key][uuid] = nil
+				end
+
+				if self.onDisconnectHandlerCallback then
+					self:onDisconnectHandlerCallback()
+				end
+			end;
+
+			onDisconnect = function (self, handler)
+				if connection and connection.Connected then
+					self.onDisconnectHandlerCallback = handler
+				end
+			end;
+		} :: module
+
+		connection = method(signal, function (...)
+			local startTime = os.clock()
+			proxy.isRunning = true
+			proxy.ContextArguments = {...}
+			proxy.CurrentCycleNo += 1
+
+			local success, result = xpcall(
+				callback,
+				function (e)
+					table.insert(proxy.Errors, e)
+					local endTime = os.clock()
+					table.insert(proxy.RunTimes, endTime - startTime)
+
+					local newProxy = table.clone(proxy)
+
+					function newProxy.onDisconnect (self)
+						warn("Cannot set onDisconnect within an Error Handler")
+					end
+
+					function newProxy.onError (self)
+						warn("Cannot set Error Handler within an Error Handler")
+					end
+
+					function newProxy.onRetryError (self, handler)
+						warn("Cannot set Retry Error Handler within an Error Handler")
+					end
+
+					function newProxy.ScheduleRetry (self, t: number?)
+						task.delay(t or 5, function()
+							self.ScheduleRetry = nil
+							self.InRetry = true
+
+							local success, result = pcall(function()
+								module.onRetryScriptLine = debug.info(1, "l") :: number + 1
+								return pcall(callback, self, self:GetArguments())
+							end)
+
+							if not success then
+								local result = if self.onRetryErrorHandler
+									then self:onRetryErrorHandler(result)
+									else warn("ScheduleRetry Failed: ", result)
+
+								-- proxy.isRunning is still true, so we run the onDisconnectHandler method here
+								if connection
+									and not connection.Connected
+									and proxy.onDisconnectHandler
+									and not proxy.HasDisconnected
+								then
+									proxy:onDisconnectHandler()
+								end
+							end
+						end)
+					end
+
+					if onError then
+						e = onError(newProxy, e) or e
+					else
+						warn(debug.traceback(e, 2))
+					end
+
+					return e
+				end,
+				proxy,
+				...
+			)
+
+			if success then
+				local endTime = os.clock()
+				table.insert(proxy.RunTimes, endTime - startTime)
+			end
+
+			-- proxy.isRunning is still true, so we run the onDisconnectHandler method here
+			if connection
+				and not connection.Connected
+				and proxy.onDisconnectHandler
+				and not proxy.HasDisconnected
+			then
+				proxy:onDisconnectHandler()
+			end
+
+			proxy.isRunning = false
+		end)
+	end
+
+	self.connections[key][uuid] = connection
+
+	return setmetatable(proxy, {
+		__index = function (self, key): any?
+			if connection and string.lower(key) == "connected" then
+				return connection.Connected
+			end
+
+			return
+		end
+	}) :: module
+end
+
+return module
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="11">
+          <Properties>
+            <string name="Name">Signal</string>
+            <string name="Source"><![CDATA[--!strict
+type table<T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) & table<any>
+type array = table<number>
+type object = table<string>
+
+local module: module = {} :: module
+
+function module.GetSignal (self, key, instance)
+	if typeof(key) == "RBXScriptSignal" then
+		return key
+	end
+
+	if typeof(key) == "string" then
+		local nest = key:split(".")
+		if #nest > 2 then
+			error("String signals should only have a depth of 2 items e.g: Players.PlayerAdded")
+		end
+		--typeof(instance :: {}) == "Instance"
+		local shorthands = self:SignalShorthands()
+		local prefix = shorthands[nest[1]] or (if typeof(instance :: {}) == "Instance" then instance else nil)
+
+		if #nest == 1 and prefix then
+			nest = table.pack(prefix, nest[1])
+		end
+
+		local service = typeof(nest[1]) == "Instance" and nest[1] or if nest[1]:lower() == "game" then game else game:GetService(nest[1])
+		local signal = nest[2]
+
+		return service[signal]
+	end
+end
+
+function module.SignalShorthands (self)
+	return {
+		PlayerAdded = "Players";
+		PlayerRemoving = "Players";
+		Stepped = "RunService";
+		RenderStepped = "RunService";
+		Heartbeat = "RunService";
+	}
+end
+
+return module
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+      <Item class="Folder" referent="12">
+        <Properties>
+          <string name="Name">Services</string>
+        </Properties>
+        <Item class="ModuleScript" referent="13">
+          <Properties>
+            <string name="Name">DataService</string>
+            <string name="Source"><![CDATA[--!strict
+type table<T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) & table<any>
+type array = table<number>
+type object = table<string>
+
+local framework: module = {} :: module
+local DataService: module = {} :: module
+
+local DataStoreService = game:GetService("DataStoreService")
+
+function DataService.DataStoreRequestTypes (self)
+	return {
+		get = Enum.DataStoreRequestType.GetAsync;
+		set = Enum.DataStoreRequestType.SetIncrementAsync;
+		update = Enum.DataStoreRequestType.UpdateAsync;
+	}
+end
+
+function DataService.DataStore (self)
+	return DataStoreService:GetGlobalDataStore()
+end
+
+function DataService.DataStoreRequestType (self, key)
+	local DataStoreRequestTypes = self:DataStoreRequestTypes()
+	return DataStoreRequestTypes[key]
+end
+
+function DataService.DataStoreRequestBudget (self, key)
+	local DataStoreRequestType = self:DataStoreRequestType(key)
+	return DataStoreService:GetRequestBudgetForRequestType(DataStoreRequestType)
+end
+
+function DataService.DataStoreThrottle (self, proxy, func, t)
+	task.delay(t or 0, function ()
+		local success, result = pcall(func, self:DataStore())
+		
+		if not success then
+			if proxy.onErrorHandler then
+				proxy:onErrorHandler(result)
+			else
+				warn(result)
+			end
+			
+			if proxy.shouldRetry then
+				proxy.retries += 1
+				return self:DataStoreThrottle(proxy, func, 5)
+			end
+			
+			-- Not sure if to return void here or this
+			return proxy:callback(proxy.response), proxy:setFinished()
+		end
+		
+		proxy:setResponse(result);
+		return proxy:callback(proxy.response), proxy:setFinished()
+	end)
+end
+
+function DataService.GetAsync (self, key, proxy)
+	self:DataStoreThrottle(proxy, function (DataStore: DataStore)
+		return DataStore:GetAsync(key)
+	end)
+end
+
+function DataService.SetAsync (self, key, value, proxy)
+	self:DataStoreThrottle(proxy, function (DataStore: DataStore)
+		return DataStore:SetAsync(key, value)
+	end)
+end
+
+function DataService.UpdateAsync (self, key, transformFunction, proxy)
+	self:DataStoreThrottle(proxy, function (DataStore: DataStore)
+		return DataStore:UpdateAsync(key, transformFunction)
+	end)
+end
+
+function DataService.IncrementAsync (self, key, delta, proxy)
+	self:DataStoreThrottle(proxy, function (DataStore: DataStore)
+		return DataStore:IncrementAsync(key, delta)
+	end)
+end
+
+function DataService.proxy (self, callback, onError)
+	return {
+		response = nil;
+
+		callback = callback;
+
+		retries = 0;
+		shouldRetry = true;
+
+		onErrorHandler = onError;
+
+		isFinished = false;
+
+		finished = function (self)
+			return self.isFinished
+		end;
+
+		sync = function (self)
+			repeat task.wait() until self:finished()
+		end;
+
+		setFinished = function (self)
+			self.isFinished = true
+		end;
+
+		setResponse = function (self, response)
+			self.response = response
+		end;
+
+		onError = function (self, callback)
+			self.onErrorHandler = callback
+		end;
+
+		CancelRetry = function (self)
+			self.shouldRetry = false
+		end;
+	}
+end
+
+function framework.Fetch (self, key, callback, onError)
+	if not callback or typeof(callback) ~= "function" then
+		error("Callback invalid")
+	end
+	
+	if self:InRetry() then
+		-- This means its running in the ScheduleRetry functionality
+		-- TODO: Figure out if connection was already established
+		if self:DebugEnabled() == "internal" then
+			warn("Exiting Connect:Fetch - within ScheduleRetry")
+		end
+
+		return self:InRetryResponse()
+	end
+	
+	local proxy: module = self.DataService:proxy(callback, onError)
+	return proxy, self.DataService:GetAsync(key, proxy)
+end
+
+function framework.Store (self, key, value, callback, onError)
+	if not callback or typeof(callback) ~= "function" then
+		error("Callback invalid")
+	end
+	
+	if self:InRetry() then
+		-- This means its running in the ScheduleRetry functionality
+		-- TODO: Figure out if connection was already established
+		if self:DebugEnabled() == "internal" then
+			warn("Exiting Connect:Store - within ScheduleRetry")
+		end
+
+		return self:InRetryResponse()
+	end
+	
+	local proxy: module = self.DataService:proxy(callback, onError)
+	return proxy, self.DataService:SetAsync(key, value, proxy)
+end
+
+function framework.UseDataStore (self, name, scope)
+	self.DataService.DataStore = function (self)
+		return DataStoreService:GetDataStore(name, scope)
+	end
+end
+
+framework.DataService = DataService
+return framework
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="14">
+          <Properties>
+            <string name="Name">FeatureService</string>
+            <string name="Source">-- --!strict
+-- type table&lt;T> = { [T] : any }
+
+-- type mt = { [string]: (...any?) -> ...any? }
+-- type module = typeof(setmetatable({}, {} :: mt)) &amp; table&lt;any>
+-- type array = table&lt;number>
+-- type object = table&lt;string>
+
+-- local framework: module = {} :: module
+-- local FeatureService: module = { register = {}; enabledClient = {} } :: module
+
+-- local MessagingService = game:GetService("MessagingService")
+-- local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- local RunService = game:GetService("RunService")
+
+-- function FeatureService.DataStoreKey (self, feature: string)
+-- 	return script.Name .. ".features." .. feature
+-- end
+
+-- function FeatureService.Register(self, feature)
+-- 	if not self.register[feature.name] then
+-- 		self.register[feature.name] = {}
+-- 	end
+	
+-- 	if feature.onEnableHandler or feature.onDisableHandler then
+-- 		self.register[feature.name][feature.uuid] = feature
+-- 	end
+-- end
+
+-- function FeatureService.Status (self, feature: string)
+-- 	local function callback ()
+-- 		print("Not deployed")
+-- 	end
+	
+-- 	if self.subscription then
+-- 		self.subscription:Disconnect()
+-- 	end
+	
+-- 	self.subscription = MessagingService:SubscribeAsync("FeatureService.features.response", function (info)
+-- 		if not info.Data then
+-- 			self.subscription:Disconnect()
+-- 			callback()
+-- 		end
+-- 	end)
+	
+-- 	task.delay(30, function ()
+-- 		if self.subscription then
+-- 			self.subscription:Disconnect()
+-- 		end
+-- 	end)
+		
+-- 	MessagingService:PublishAsync("FeatureService.subscription", "status." .. feature)
+-- end
+
+-- function FeatureService.proxy (self, name, callback, uuid, onDisable)
+-- 	return {
+-- 		name = name;
+-- 		uuid = uuid;
+		
+-- 		callback = callback;
+		
+-- 		onDisableHandler = onDisable;
+		
+-- 		onDisable = function (self, callback)
+-- 			if typeof(callback) ~= "function" then
+-- 				error("Invalid type for onDisableHandler: Must be function")
+-- 			end
+
+-- 			self.onDisableHandler = callback
+-- 			framework.FeatureService:Register(self)
+-- 		end;
+		
+-- 		run = function (self)
+-- 			return self:callback()
+-- 		end;
+		
+-- 		onEnable = function (self, callback)
+-- 			if typeof(callback) ~= "function" then
+-- 				error("Invalid type for onEnableHandler: Must be function")
+-- 			end
+			
+-- 			self.onEnableHandler = callback
+-- 			framework.FeatureService:Register(self)
+-- 		end;
+-- 	}
+-- end
+
+-- function framework.IsFeatureEnabled (self, proxy, callback)
+-- 	if RunService:IsServer() then
+-- 		self:Fetch(self.FeatureService:DataStoreKey(proxy.name), function (self, result)
+-- 			return callback(proxy, result)
+-- 		end)
+-- 	end
+	
+-- 	if RunService:IsClient() then
+-- 		-- TODO: Need to fix this and make it work
+-- 		return self.FeatureService.isEnabledRemote:InvokeServer(proxy, callback)
+-- 		--return callback(proxy, if self.FeatureService.enabledClient[proxy.name] then true else false)
+-- 	end
+-- end
+
+-- function framework.Feature (self, name: string, callback)
+-- 	if typeof(callback) ~= "function" then
+-- 		error("Invalid type for feature callback: Must be function")
+-- 	end
+	
+-- 	-- This needs to be changed as can create memory leak 
+-- 	-- if the feature is defined in a loop
+-- 	if not self.FeatureService.register[name] then
+-- 		self.FeatureService.register[name] = {}
+-- 	end
+	
+-- 	local proxy = self.FeatureService:proxy(name, callback, self:CreateUUID(name, self.FeatureService.register))
+-- 	self.FeatureService:Register(proxy)
+	
+-- 	return proxy, self:IsFeatureEnabled(proxy, function (self, result)
+-- 		if result then
+-- 			return self:callback()
+-- 		end
+-- 	end)
+-- end
+
+-- function framework.EnableFeature (self, feature: string, shouldRun: boolean?)
+-- 	if RunService:IsServer() then
+-- 		self:Store(self.FeatureService:DataStoreKey(feature), true, function (self, result)
+-- 			if shouldRun then
+-- 				MessagingService:PublishAsync("FeatureService.subscription", "enable." .. feature)
+-- 			end
+-- 		end)
+-- 	end
+	
+-- 	if RunService:IsClient() then
+-- 		-- TODO: Handle enabling features on the client
+-- 		local feature = self.FeatureService.register[feature]
+-- 		if feature then
+-- 			for _,feature in next, feature do
+-- 				if feature.onEnableHandler and typeof(feature.onEnableHandler) == "function" then
+-- 					feature:onEnableHandler()
+-- 				end
+-- 			end
+-- 		end
+-- 	end
+-- end
+
+-- function framework.DisableFeature(self, feature: string)
+-- 	if RunService:IsServer() then
+-- 		self:Store(self.FeatureService:DataStoreKey(feature), false, function(self, result)
+-- 			MessagingService:PublishAsync("FeatureService.subscription", "disable." .. feature)
+-- 		end)
+-- 	end
+	
+-- 	if RunService:IsClient() then
+-- 		local feature = self.FeatureService.register[feature]
+-- 		if feature then
+-- 			for _,feature in next, feature do
+-- 				if feature.onDisableHandler and typeof(feature.onDisableHandler) == "function" then
+-- 					feature:onDisableHandler()
+-- 				end
+-- 			end
+-- 		end
+-- 	end
+-- end
+
+-- if RunService:IsServer() then
+-- 	local enableRemote = Instance.new("RemoteEvent")
+-- 	enableRemote.Name = "FeatureService.enable"
+-- 	enableRemote.Parent = ReplicatedStorage
+-- 	FeatureService.enableRemote = enableRemote
+	
+-- 	local disableRemote = Instance.new("RemoteEvent")
+-- 	disableRemote.Name = "FeatureService.disable"
+-- 	disableRemote.Parent = ReplicatedStorage
+-- 	FeatureService.disableRemote = disableRemote
+	
+-- 	local isEnabledRemote = Instance.new("RemoteFunction")
+-- 	isEnabledRemote.Name = "FeatureService.isEnabled"
+-- 	isEnabledRemote.Parent = ReplicatedStorage
+-- 	FeatureService.isEnabledRemote = isEnabledRemote
+	
+-- 	isEnabledRemote.OnServerInvoke = function (Player, proxy, callback)
+-- 		return 	
+-- 	end
+	
+-- 	task.defer(function ()
+-- 		MessagingService:SubscribeAsync("FeatureService.subscription", function (message)
+-- 			local messageData = message.Data:split(".")
+			
+-- 			local option = messageData[1]
+-- 			local featureName = if #messageData > 2 then table.remove(messageData, 1) and table.concat(messageData, ".") else messageData[2]
+-- 			local register = framework.FeatureService.register[featureName]
+			
+-- 			if option == "status" then
+-- 				return MessagingService:PublishAsync("FeatureService.features.response", if register then true else false)
+-- 			end
+
+-- 			if register then
+-- 				for _,feature in next, register do
+-- 					if option == "enable" and feature.onEnableHandler and typeof(feature.onEnableHandler) == "function" then
+-- 						feature:onEnableHandler()
+-- 						enableRemote:FireAllClients(featureName)
+-- 					end
+					
+-- 					if option == "disable" and feature.onDisableHandler and typeof(feature.onDisableHandler) == "function" then
+-- 						feature:onDisableHandler()
+-- 						disableRemote:FireAllClients(featureName)
+-- 					end
+-- 				end
+-- 			end
+-- 		end)
+-- 	end)
+-- end
+
+-- if RunService:IsClient() then
+-- 	-- TODO: This might need changing
+-- 	local enableRemote = ReplicatedStorage:WaitForChild("FeatureService.enable")
+-- 	local disableRemote = ReplicatedStorage:WaitForChild("FeatureService.disable")
+-- 	local isEnabledRemote = ReplicatedStorage:WaitForChild("FeatureService.isEnabled")
+
+-- 	enableRemote.OnClientEvent:Connect(function (feature: string)
+-- 		framework:EnableFeature(feature)
+-- 	end)
+	
+-- 	disableRemote.OnClientEvent:Connect(function (feature: string)
+-- 		framework:DisableFeature(feature)
+-- 	end)
+	
+-- 	FeatureService.enableRemote = enableRemote
+-- 	FeatureService.disableRemote = disableRemote
+-- 	FeatureService.isEnabledRemote = isEnabledRemote
+-- end
+
+-- framework.FeatureService = FeatureService
+-- return framework
+return {}</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="15">
+          <Properties>
+            <string name="Name">HelperService</string>
+            <string name="Source"><![CDATA[--!strict
+type table<T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) & table<any>
+type array = table<number>
+type object = table<string>
+
+local framework: module = {} :: module
+local HelperService: module = {} :: module
+
+local session = {}
+
+function framework.Session (self, object: object?)
+	local storage: object = session
+	storage.Data = object or session.Data or {}
+
+	function storage:Get (key): any?
+		local key = tostring(key)
+		local nest = key:split(".")
+
+		local t = self.Data do
+			for _,nest in next, nest do
+				local nest = tonumber(nest) or nest
+				
+				if not t[nest] then
+					return nil
+				end
+	
+				t = t[nest]
+			end
+		end
+
+		return t
+	end
+
+	function storage:Key (...)
+		local parts = {...}
+		return table.concat(parts, ".")
+	end
+
+	function storage:Update (key, value): ()
+		local key = tostring(key)
+		local nest = key:split(".")
+		table.insert(nest, (#nest), "")
+
+		local t = self.Data do
+			for _,nest in next, nest do
+				if nest:len() == 0 then
+					break
+				end
+				
+				local nest = tonumber(nest) or nest
+				
+				if not t[nest] then
+					t[nest] = {}
+				end
+
+				t = t[nest]
+			end
+		end
+
+		t[tonumber(nest[#nest]) or nest[#nest]] = value
+		
+		if self.onUpdateHandler and typeof(self.onUpdateHandler) == "function" then
+			self:onUpdateHandler(key, value)
+		end
+		
+		if self.updateHandlers[key] then
+			for _,callback in next, self.updateHandlers[key] do
+				if typeof(callback) == "function" then
+					callback(self, value)
+				end
+			end
+		end
+	end
+
+	function storage:Remove (key): ()
+		local key = tostring(key)
+		local nest = key:split(".")
+		
+		table.insert(nest, (#nest), "")
+
+		local t = self.Data do
+			for _,nest in next, nest do
+				if nest:len() == 0 then
+					break
+				end
+				
+				local nest = tonumber(nest) or nest
+				
+				if not t[nest] then
+					return
+				end
+
+				t = t[nest]
+			end
+		end
+
+		t[tonumber(nest[#nest]) or nest[#nest]] = nil
+
+		if self.updateHandlers[key] then
+			self.updateHandlers[key] = nil
+		end
+	end
+	
+	storage.updateHandlers = {}
+	
+	function storage:onUpdate (key, callback)
+		if typeof(key) == "function" then
+			rawset(self, "onUpdateHandler", key)
+			return
+		end
+		
+		if typeof(key) ~= "string" then
+			error("Invalid key for Nest:onUpdate")
+		end
+		
+		if not self.updateHandlers[key] then
+			self.updateHandlers[key] = {}
+		end
+		
+		table.insert(self.updateHandlers[key], callback)
+	end
+
+	storage.store = storage.Update
+	storage.save = storage.Update
+	storage.set = storage.Update
+	storage.update = storage.Update
+
+	storage.get = storage.Get
+	storage.fetch = storage.Get
+	storage.retrieve = storage.Get
+	storage.find = storage.Get
+
+	storage.remove = storage.Remove
+	storage.unset = storage.Remove
+	storage.delete = storage.Remove
+	
+	storage.key = storage.Key
+
+	return setmetatable(storage, {
+		__index = function (self, key)
+			return self:Get(key)
+		end;
+		
+		__newindex = function (self, key, value)
+			self:Update(key, value)
+		end;
+	})
+end
+
+function HelperService.RoundDecimal (self: module, num: number, decimals: number): number
+	local multiplier = 1
+	for i = 1, decimals do
+		multiplier *= 10
+	end
+
+	return math.floor(num * multiplier) / multiplier 
+end
+
+function HelperService.FormatNumber (self: module, num: number): string
+	local keys = {"K", "M", "B", "T", "Q"}
+
+	if num == 0 then
+		return "0 :("
+	end
+
+	local exponent = math.min(#keys, math.floor(math.log(num, 1000)))
+	local key = keys[exponent] or ""
+
+	return self:RoundDecimal(num / (1000 ^ exponent), 2) .. key
+end
+
+framework.HelperService = HelperService
+return framework
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+      <Item class="Folder" referent="16">
+        <Properties>
+          <string name="Name">Threads</string>
+        </Properties>
+        <Item class="ModuleScript" referent="17">
+          <Properties>
+            <string name="Name">Delay</string>
+            <string name="Source">return function (self: module, seconds: number, key: string, callback: () -> ()): thread
+	if self.threads[key] then
+		-- automatically cancel any existing thread
+		task.cancel(self.threads[key])
+	end
+
+	return self:Thread(key, task.delay(seconds, callback))
+end</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="18">
+          <Properties>
+            <string name="Name">Thread</string>
+            <string name="Source">--!strict
+type table&lt;T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) &amp; table&lt;any>
+type array = table&lt;number>
+type object = table&lt;string>
+
+local module: module = {} :: module
+
+module.threads = {}
+
+function module.GetThread (self: module, key: string): thread?
+	return self.threads[key]
+end
+
+function module.Thread (self: module, key: string, thread: thread?): thread
+	if not thread then
+		return self:GetThread(key)
+	end
+
+	self.threads[key] = thread
+	return thread
+end
+
+return module</string>
+          </Properties>
+        </Item>
+      </Item>
+      <Item class="Folder" referent="19">
+        <Properties>
+          <string name="Name">Validation</string>
+        </Properties>
+        <Item class="ModuleScript" referent="20">
+          <Properties>
+            <string name="Name">Validate</string>
+            <string name="Source"><![CDATA[--!strict
+type table<T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) & table<any>
+type array = table<number>
+type object = table<string>
+
+local module: module = {} :: module
+
+function module.Validate (self: module, key, signal, callback, onError)
+	if not key then
+		error("key invalid")
+	end
+
+	if not signal or typeof(signal) ~= "RBXScriptSignal" then
+		error("signal invalid")
+	end
+
+	if not callback or typeof(callback) ~= "function" then
+		error("callback invalid")
+	end
+
+	if onError and typeof(onError) ~= "function" then
+		error("Error Handler invalid")
+	end
+end
+
+function module.ValidateCoreParams (self: module, options: { [string]: any? }, callback: (...any?) -> ...any?): ()
+	if not options or typeof(options) ~= "table" then
+		error("options invalid")
+	end
+
+	self:ValidateOptions(options)
+
+	if not callback or typeof(callback) ~= "function" then
+		error("callback invalid")
+	end
+end
+
+function module.ValidateOptions (self: module, options: { [string]: any? })
+	if not options.Interval then
+		error("options.Interval Not Provided")
+	end
+
+	if not options.Arguments then
+		error("options.Arguments Not Provided")
+	end
+
+	if not options.StartInstantly and options.StartInstantly ~= false then
+		error("options.StartInstantly Not Provided")
+	end
+
+	if not table.find({"number", "function"}, typeof(options.Interval)) then
+		error("Invalid datatype for options.Interval")
+	end
+
+	if typeof(options.Arguments) ~= "function" then
+		error("Invalid datatype for options.Arguments")
+	end
+
+	if typeof(options.StartInstantly) ~= "boolean" then
+		error("Invalid datatype for options.StartInstantly")
+	end
+end
+
+return module
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+    <Item class="Folder" referent="21">
+      <Properties>
+        <string name="Name">Shared</string>
+      </Properties>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="22">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Script" referent="23">
+      <Properties>
+        <string name="Name">server</string>
+        <token name="RunContext">0</token>
+        <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+-- Create the session
+local Session = Connect:session()
+local Event = Connect:event()
+
+-- Register the PlayerAdded Connection
+local connection = Connect:create("PlayerAdded", function (self, Player)
+    Event:dispatch("fetch", Player)
+end)
+
+-- Register the PlayerRemoving connection
+Connect:create("PlayerRemoving", function (self, Player)
+    Event:dispatch("store", Player)
+end)
+
+-- Connect:DebugEnabled("internal")</string>
+      </Properties>
+      <Item class="Script" referent="24">
+        <Properties>
+          <string name="Name">datastore</string>
+          <token name="RunContext">0</token>
+          <string name="Source">-- local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+-- Connect.new("PlayerAdded", function (self, Player)
+-- 	-- Do all DataStore requests at the top
+-- 	-- as they do not work within Scheduled Retries
+-- 	print("PlayerAdded")
+	
+-- 	local leaderstats = Instance.new("IntValue")
+-- 	leaderstats.Name = "leaderstats"
+-- 	leaderstats.Parent = Player
+	
+-- 	local DataStoreRequest = Connect:Fetch(Player.UserId, function (self, response)
+-- 		local Coins = Instance.new("IntValue")
+-- 		Coins.Name = "Coins"
+-- 		Coins.Value = response or 0
+-- 		Coins.Parent = leaderstats
+-- 	end)
+	
+-- 	DataStoreRequest:onError(function (self, err)
+-- 		warn(err)
+		
+-- 		if self.retries == 5 then
+-- 			self:CancelRetry()
+-- 		end
+-- 	end)
+	
+-- 	local GemsFeature = Connect:Feature("Gems", function (self)
+-- 		local feature = self
+		
+-- 		local DataStoreRequest = Connect:Fetch(Player.UserId .. "Gems", function (self, response)
+-- 			local Gems = Instance.new("IntValue")
+-- 			Gems.Name = "Gems"
+-- 			Gems.Value = response or 0
+-- 			Gems.Parent = leaderstats
+			
+-- 			feature:onDisable(function ()
+-- 				Connect:Store(Player.UserId .. "Gems", Gems.Value, function (self, response)
+-- 					Gems:Destroy()
+-- 				end)
+-- 			end)
+-- 		end)
+-- 	end)
+	
+-- 	--GemsFeature:onEnable(function (self)
+-- 	--	self:run()
+-- 	--end)
+	
+-- 	Connect.new(Player, "CharacterAdded", function (self, Character)
+-- 		print("CharacterAdded")
+-- 	end)
+	
+-- end)
+
+-- Connect.new("PlayerRemoving", function (self, Player)
+-- 	Connect:Store(Player.UserId, 10, function (self, response)
+-- 		print("success")
+-- 	end)
+-- end)
+
+
+-- print(Connect.HelperService:FormatNumber(1000000))
+
+-- local nest = Connect.HelperService:Nest({
+-- 	playerData = {
+-- 		{
+-- 			testValue = 6;
+-- 			otherValue = 7;
+-- 		};
+		
+-- 		{
+-- 			testValue = 4;
+-- 			otherValue = 5;
+-- 		};
+-- 	}
+-- })
+
+-- nest:onUpdate(function (self, key, value)
+-- 	print("Global update:", key, value)
+-- end)
+
+-- nest:onUpdate('playerData.2.testValue', function (self, value)
+-- 	print("playerData.2.testValue update:", value)
+-- end)
+
+-- nest:Update("hello.my.name.is.web", 5)
+
+-- nest["hello.there"] = 5
+-- nest["playerData.2.testValue"] = 9
+
+-- print(nest.Data)</string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="25">
+        <Properties>
+          <string name="Name">events</string>
+          <token name="RunContext">0</token>
+          <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+-- Create the session
+local Session = Connect:session()
+local Event = Connect:event()
+
+Event:listen("fetch", function (Player)
+    local key = Session:key(Player.UserId, "Points")
+    -- Dispatch the Event which creates the leaderboard
+    local Leaderstats, Points = Event:dispatch("createLeaderboard", key)
+    -- Fetch the player's saved data for this key
+    local DataStoreRequest = Connect:fetch(key, function (self, response)
+        Connect.tick(function (i)
+            -- Increase the points each second
+            Session:update(key, (Session:find(key) or response or 0) + 1)
+        end, function ()
+            -- Cancel running if the player has left
+            return not (Player and Player.Parent)
+        end)
+    end)
+
+    -- Wait for the DataStoreRequest to finish
+    DataStoreRequest:sync()
+
+    Points.Parent = Leaderstats
+    Leaderstats.Parent = Player
+end)
+
+Event:listen("fetch.finished", function ()
+    print("fetch.finished")
+end)
+
+Event:listen('store', function (Player)
+    local key = Session:key(Player.UserId, "Points")
+    local value = Session:find(key)
+
+    -- Save the player's points
+    local DataStoreRequest = Connect:store(key, value, function (self, response)
+        -- Remove the key from session storage, it's no longer needed
+        Session:remove(key)
+    end)
+
+    DataStoreRequest:sync()
+end)
+
+Event:listen("store.finished", function ()
+    print(`store.finished`)
+end)
+
+Event:listen("createLeaderboard", function (key)
+    -- Create the leaderboard
+    local Leaderstats = Instance.new("StringValue")
+    Leaderstats.Name = "leaderstats"
+
+    -- Create the points value for the leaderboard
+    local Points = Instance.new("IntValue")
+    Points.Name = "Points"
+
+    -- Register a Key specific onUpdate handler
+    Session:onUpdate(key, function (self, value)
+        Points.Value = value
+    end)
+
+    return Leaderstats, Points
+end)
+
+Event:listen("createLeaderboard.finished", function ()
+    print("createLeaderboard.finished")
+end)</string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="26">
+        <Properties>
+          <string name="Name">old</string>
+          <token name="RunContext">0</token>
+          <string name="Source">-- local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+-- Connect:UseDataStore(4)
+
+-- local Session = Connect:Session()
+
+-- Session:onUpdate(function (self, key, value)
+--     print(`{key}: {value}`)
+-- end)
+
+-- Connect.new("PlayerAdded", function (self, Player)
+--     local key = Session:Key(Player.UserId)
+--     print(key);
+
+-- 	local leaderstats = Instance.new("IntValue")
+-- 	leaderstats.Name = "leaderstats"
+-- 	leaderstats.Parent = Player
+
+--     local DataStoreRequest = Connect:Fetch(Player.UserId, function (self, response)
+--         local Time = Instance.new("StringValue")
+-- 		Time.Name = "Time"
+
+-- 		Session:onUpdate(key, function (self, value)
+--             local value = tonumber(value)
+
+--             local f,dv
+--             if (value >= 86400) then
+--                 dv = math.floor(value/86400)
+--                 f = dv .. " day" .. (if tonumber(dv) == 1 then "" else "s") .. " "
+--             end
+
+--             local m = value
+--             if (f and dv) then
+--                 m = value - (86400 * dv)
+--             end
+
+--             local t = {" min", " hour"}
+--             local e = math.min(#t, math.floor(math.log(m, 60)))
+--             local d = t[e] or (if m == 0 then "" else " sec")
+
+--             local v = (f or "") .. (if m and m > 0 then math.floor(m / (60 ^ e)) else "")
+--             Time.Value = v .. d .. (if (not tonumber(m) or tonumber(m) &lt;= 1) then "" else "s")
+--         end)
+        
+--         Connect.tick(1, function ()
+--             -- need to cancel this when the player
+--             -- has left the game
+--             print(key)
+--             print(Session:Get(key))
+--             print(response);
+
+--             local value = (Session:Get(key) or (response or 0)) + 1
+
+--             if (value % 180 == 0) then
+--                 -- autosave every 3 minutes
+--                 Connect:Store(Player.UserId, value, function (self, response)
+--                     return response
+--                 end)
+--             end
+
+--             Session:Update(key, value)
+--         end, function ()
+--             -- Cancel running if the player has left
+--             return not (Player and Player.Parent)
+--         end)
+
+--         Time.Parent = leaderstats
+-- 	end)
+	
+-- 	DataStoreRequest:onError(function (self, err)
+-- 		warn(err)
+		
+-- 		if self.retries == 5 then
+-- 			self:CancelRetry()
+-- 		end
+-- 	end)
+-- end)
+
+-- Connect:once("Players.PlayerRemoving", function (self, Player)
+--     local key = Session:Key(Player.UserId)
+
+-- 	local value = Session:Get(key)
+-- 	Session:Remove(key)
+
+-- 	local DataStoreRequest = Connect:Store(Player.UserId, value, function (self, response)
+--         print(response)
+--         return response
+--     end)
+
+--     DataStoreRequest:onError(function (self, err)
+--         warn(err)
+    
+--         if self.retries == 5 then
+--             self:CancelRetry()
+--         end
+--     end)
+
+--     print(`Here: {DataStoreRequest.response}`);
+--     DataStoreRequest:sync()
+--     print(`Done: {DataStoreRequest.response}`);
+-- end)
+
+-- game:BindToClose(function ()
+--     -- this is problematic as Session.Data is nested
+--     for userId, userData in next, Session.Data do
+--         Session:Remove(userId)
+
+--         local DataStoreRequest = Connect:Store(userId, userData, function (self, response)
+--             return response
+--         end)
+
+--         DataStoreRequest:onError(function (self, err)
+--             warn(err)
+		
+--             if self.retries == 3 then
+--                 self:CancelRetry()
+--             end
+--         end)
+
+--         DataStoreRequest:sync()
+--     end
+-- end)</string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="SoundService" referent="27">
+    <Properties>
+      <string name="Name">SoundService</string>
+      <bool name="RespectFilteringEnabled">true</bool>
+    </Properties>
+  </Item>
+  <Item class="StarterPlayer" referent="28">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="29">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="LocalScript" referent="30">
+        <Properties>
+          <string name="Name">client</string>
+          <string name="Source">print("Hello world, from client!")</string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="Workspace" referent="31">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="FilteringEnabled">true</bool>
+    </Properties>
+    <Item class="Part" referent="32">
+      <Properties>
+        <string name="Name">Baseplate</string>
+        <bool name="Anchored">true</bool>
+        <Color3uint8 name="Color3uint8">6512483</Color3uint8>
+        <bool name="Locked">true</bool>
+        <Vector3 name="Position">
+          <X>0</X>
+          <Y>-10</Y>
+          <Z>0</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>512</X>
+          <Y>20</Y>
+          <Z>512</Z>
+        </Vector3>
+      </Properties>
+    </Item>
+  </Item>
+</roblox>

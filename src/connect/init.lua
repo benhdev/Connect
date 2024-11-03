@@ -30,6 +30,7 @@ function module:Initialize()
         end
     end
 
+    setmetatable(self.framework, { __index = self.framework:setPointers() })
     setmetatable(self, { __index = self.framework; __call = self.framework.AddConnection :: (any) -> any; })
 
     self:Thread("MODULE_SECURITY", coroutine.create(self.Cleanup))
@@ -38,7 +39,7 @@ function module:Initialize()
     for _,signalIdentifier in next, {"Players.PlayerRemoving", "game.DescendantRemoving"} do
         self:GetSignal(signalIdentifier):Connect(function(arg)
             if signalIdentifier == "Players.PlayerRemoving" then
-                return self:DisconnectByKey(arg.UserId)
+                self:DisconnectByKey(arg.UserId)
             end
 
             return self:DisconnectByKey(arg)
@@ -47,6 +48,25 @@ function module:Initialize()
 
     function self.new(...): module?
         return self:AddConnection(...)
+    end
+
+    function self.tick (interval, callback, Cancel): module?
+        if typeof(interval) == "function" then
+            Cancel = callback
+            callback = interval
+            interval = 1
+        end
+
+        local counter = 0
+        return self:CreateCoreLoop({
+            Interval = interval,
+            Cancel = Cancel,
+            StartInstantly = true,
+            Arguments = function ()
+                counter += 1 
+                return counter
+            end
+        }, callback)
     end
 
     return self
