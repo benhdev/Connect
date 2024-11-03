@@ -245,6 +245,34 @@ Session:onUpdate(key, function (self, value)
 end)
 ```
 
+### Using Events
+
+Connect provides various event utilities which can be used to handle specific functionality in one place
+
+Accessing the event object
+
+```lua
+local Event = Connect:event()
+```
+
+Registering an Event Listener
+
+```lua
+Event:listen("action", function (arg1, arg2)
+    print(arg1, arg2)
+end)
+```
+
+Dispatching an event
+
+```lua
+Event:dispatch("action", 1, 2)
+```
+
+```lua
+Event:fire("action", 1, 2)
+```
+
 ### Data Storage & Retrieval
 
 Connect provides various utilities to make handling datastores easier
@@ -292,10 +320,8 @@ Checking if the DataStoreRequest has finished
 print(DataStoreRequest:finished())
 ```
 
-> [!TIP]
->
-> <sub>_Example_</sub>
->
+Examples
+
 > ```lua
 > local ReplicatedStorage = game:GetService("ReplicatedStorage")
 > local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
@@ -354,6 +380,90 @@ print(DataStoreRequest:finished())
 >         -- Remove the key from session storage, it's no longer needed
 >         Session:remove(key)
 >     end)
+> end)
+> ```
+
+or we can utilize events and separate the functionality into a modular style
+
+> <sub>server.lua</sub>
+>
+> ```lua
+> local ReplicatedStorage = game:GetService("ReplicatedStorage")
+> local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+>
+> -- Create the session
+> local Session = Connect:session()
+> local Event = Connect:event()
+>
+> -- Register the PlayerAdded Connection
+> local connection = Connect:create("PlayerAdded", function (self, Player)
+>     Event:dispatch("fetch", Player)
+> end)
+>
+> -- Register the PlayerRemoving connection
+> Connect:create("PlayerRemoving", function (self, Player)
+>     Event:dispatch("store", Player)
+> end)
+> ```
+
+> <sub>events.lua</sub>
+>
+> ```lua
+> local ReplicatedStorage = game:GetService("ReplicatedStorage")
+> local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+>
+> -- Create the session
+> local Session = Connect:session()
+> local Event = Connect:event()
+>
+> Event:listen("fetch", function (Player)
+>     local key = Session:key(Player.UserId, "Points")
+>     -- Dispatch the Event which creates the leaderboard
+>     local Leaderstats, Points = Event:dispatch("createLeaderboard", key)
+>     -- Fetch the player's saved data for this key
+>     local DataStoreRequest = Connect:fetch(key, function (self, response)
+>         Connect.tick(function (i)
+>             -- Increase the points each second
+>             Session:update(key, (Session:find(key) or response or 0) + 1)
+>         end, function ()
+>             -- Cancel running if the player has left
+>             return not (Player and Player.Parent)
+>         end)
+>     end)
+>
+>     -- Wait for the DataStoreRequest to finish
+>     DataStoreRequest:sync()
+>
+>     Points.Parent = Leaderstats
+>     Leaderstats.Parent = Player
+> end)
+>
+> Event:listen('store', function (Player)
+>     local key = Session:key(Player.UserId, "Points")
+>     local value = Session:find(key)
+>
+>     -- Save the player's points
+>     Connect:store(key, value, function (self, response)
+>         -- Remove the key from session storage, it's no longer needed
+>         Session:remove(key)
+>     end)
+> end)
+>
+> Event:listen("createLeaderboard", function (key)
+>     -- Create the leaderboard
+>     local Leaderstats = Instance.new("StringValue")
+>     Leaderstats.Name = "leaderstats"
+>
+>     -- Create the points value for the leaderboard
+>     local Points = Instance.new("IntValue")
+>     Points.Name = "Points"
+>
+>     -- Register a Key specific onUpdate handler
+>     Session:onUpdate(key, function (self, value)
+>         Points.Value = value
+>     end)
+>
+>     return Leaderstats, Points
 > end)
 > ```
 
