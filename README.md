@@ -81,7 +81,7 @@ end)
 
 > [!TIP]
 >
-> <sub>The following methods are also available from within the connection itself</sub>
+> The following methods are also available from within the connection itself
 
 Listen to when a connection is closed
 
