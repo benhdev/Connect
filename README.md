@@ -26,7 +26,33 @@ For more help, check out [the Rojo documentation](https://rojo.space/docs).
 
 ## Usage
 
+Require the ConnectFramework Module
+
+```lua
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+```
+
 ### Handling Connections
+
+Create a new connection
+
+```lua
+Connect:create("Players.PlayerAdded", function (self, Player)
+    print(Player.Name)
+end)
+```
+
+```lua
+Connect:once("Players.PlayerAdded", function (self, Player)
+    print(Player.Name)
+end)
+```
+
+```lua
+Connect:parallel("Players.PlayerAdded", function (self, Player)
+    print(Player.Name)
+end)
+```
 
 ```lua
 local CollectionService = game:GetService("CollectionService")
