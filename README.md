@@ -269,7 +269,6 @@ Registering an Event Listener
 
 ```lua
 Event:listen("action", function (arg1, arg2)
-    print(arg1, arg2)
     return arg1 + arg2
 end)
 ```
