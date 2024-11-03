@@ -393,7 +393,7 @@ print(DataStoreRequest:finished())
 > ```
 
 > [!TIP]
-> or we can utilize events and separate the functionality into a modular style
+> or we can utilize events and separate the functionality into a modular styled approach
 
 > <sub>init.server.lua</sub>
 >
