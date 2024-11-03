@@ -26,7 +26,7 @@ For more help, check out [the Rojo documentation](https://rojo.space/docs).
 
 ## Usage
 
-Require the ConnectFramework Module
+Require the **ConnectFramework Module**
 
 ```lua
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
@@ -54,7 +54,7 @@ Connect:parallel("Players.PlayerAdded", function (self, Player)
 end)
 ```
 
-Registering a connection can be done in various different ways
+Registering a connection can be done in **various different ways**
 
 > [!NOTE]
 > The `key` argument is always optional
@@ -65,13 +65,13 @@ local connection = Connect:create(key: instance | string, signal: RBXScriptSigna
 end)
 ```
 
-Disconnect a connection
+**Disconnect** a connection
 
 ```lua
 connection:Disconnect()
 ```
 
-or from **within the connection** itself
+or from **within the connection itself**
 
 ```lua
 Connect:create(key: instance | string, signal: RBXScriptSignal | string, function (self, ...)
@@ -108,7 +108,7 @@ Get the total number of errors across all runs
 connection:TotalErrors()
 ```
 
-Monitor the execution time of your connection
+Monitor the **execution time** of the connection
 
 ```lua
 Connect.tick(5, function ()
