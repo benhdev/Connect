@@ -281,7 +281,7 @@ Event:fire("action", 1, 2)
 ```
 
 > [!NOTE]
-> More functionality for Events will be coming soon!
+> More functionality for events will be coming soon!
 
 ### Data Storage & Retrieval
 
