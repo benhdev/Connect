@@ -71,7 +71,7 @@ Disconnect a connection
 connection:Disconnect()
 ```
 
-or from within the connection itself
+or from **within the connection** itself
 
 ```lua
 Connect:create(key: instance | string, signal: RBXScriptSignal | string, function (self, ...)
