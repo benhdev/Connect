@@ -256,6 +256,9 @@ end)
 
 Connect provides various event utilities which can be used to handle specific functionality in one place
 
+> [!NOTE]
+> More functionality for events will be coming soon!
+
 Accessing the event object
 
 ```lua
@@ -289,9 +292,6 @@ Event:fire("action", 1, 2)
 >     print(response) -- 3
 > end)
 > ```
-
-> [!NOTE]
-> More functionality for events will be coming soon!
 
 ### Data Storage & Retrieval
 
