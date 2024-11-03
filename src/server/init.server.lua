@@ -8,11 +8,11 @@ local Session = Connect:session()
 
 -- Register a global onUpdate handler
 Session:onUpdate(function (self, key, value)
-    print(`{key}: {value}`)
+    -- print(`{key}: {value}`)
 end)
 
 -- Register the PlayerAdded Connection
-local PlayerAdded = Connect:create("PlayerAdded", function (self, Player)
+local connection = Connect:create("PlayerAdded", function (self, Player)
     -- Create a Key for the Player's points
     local key = Session:key(Player.UserId, "Points")
 
@@ -33,10 +33,14 @@ local PlayerAdded = Connect:create("PlayerAdded", function (self, Player)
     end)
 end)
 
+connection:onDisconnect(function (self)
+
+end)
+
 Connect.tick(5, function ()
-    print(PlayerAdded:AverageRunTime())
+    
 end, function () 
-    return not PlayerAdded.Connected
+    return not connection.Connected
 end)
 
 -- Register the PlayerRemoving connection

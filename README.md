@@ -65,21 +65,57 @@ local connection = Connect:create(key: instance | string, signal: RBXScriptSigna
 end)
 ```
 
-```lua
-local CollectionService = game:GetService("CollectionService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+Listen to when a connection is closed
 
-local signal = CollectionService:GetInstanceAddedSignal("Bread")
-Connect:create(signal, function (self, instance: BasePart)
-    Connect:create(instance, "Touched", function (self, hit)
-        ...
-        if some_condition then
-            self:Disconnect()
-        end
-    end)
+```lua
+connection:onDisconnect(function (self)
+
 end)
 ```
+
+Get the last Arguments passed to the connection
+
+```lua
+connection:GetArguments()
+```
+
+Get the total number of errors across all runs
+
+```lua
+connection:TotalErrors()
+```
+
+Monitor the execution time of your connection
+
+```lua
+Connect.tick(5, function ()
+    print(connection:AverageRunTime())
+end, function ()
+    -- cancel when the connection is no longer present
+    return not connection.Connected
+end)
+```
+
+> [!TIP]
+>
+> <sub>_Example_</sub>
+>
+> ```lua
+> local CollectionService = game:GetService("CollectionService")
+> local ReplicatedStorage = game:GetService("ReplicatedStorage")
+> local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+>
+> local signal = CollectionService:GetInstanceAddedSignal("Bread")
+> Connect:create(signal, function (self, instance: BasePart)
+>     Connect:create(instance, "Touched", function (self, hit)
+>         ...
+>         if some_condition then
+>             ...
+>             self:Disconnect()
+>         end
+>     end)
+> end)
+> ```
 
 Connections associated with `Player.UserId` automatically disconnect when the player leaves the game
 
