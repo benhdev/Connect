@@ -9,7 +9,7 @@ return {
 
             initialize = function (self, instance, label)
                 self.Instance = instance
-                
+
                 self.ProximityPrompt.ActionText = label
                 self.ProximityPrompt.HoldDuration = 0.3
                 self.ProximityPrompt.Parent = instance
@@ -47,6 +47,5 @@ return {
         }
 
         return prompt, prompt.ProximityPrompt
-        
     end
 }

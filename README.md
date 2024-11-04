@@ -350,7 +350,7 @@ connection:onDisconnect(function (self)
 end)
 ```
 
-Using multiple Parts
+Using a Prompt with multiple parts
 
 ```lua
 local Prompt = Connect:prompt()
