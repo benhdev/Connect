@@ -491,6 +491,32 @@ print(DataStoreRequest:finished())
 > end)
 > ```
 
+### Using Prompts
+
+Creating a new Prompt
+
+```lua
+local Prompt = Connect:prompt()
+
+local ProximityPrompt, connection = Prompt:create(part, "do something", function (self, Player)
+    print("triggered")
+end)
+```
+
+Creating a single use Prompt
+
+```lua
+local Prompt = Connect:prompt()
+
+local ProximityPrompt, connection = Prompt:once(part, "do something once", function (self, Player)
+    print("triggered once")
+end)
+```
+
+> [!NOTE]
+> By default, `Prompt:once` will **Destroy** the ProximityPrompt once the action has been triggered.
+> This functionality can be disabled by setting a new callback for `onDisconnect`
+
 ### Error Handling
 
 Available methods on the `self` object within callbacks for `Connect`, `onError`, `onRetryError`, and `onDisconnect`
