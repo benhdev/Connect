@@ -11,15 +11,15 @@ local Event = Connect:event()
 local Prompt, ProximityPrompt = Connect:prompt(part)
 ProximityPrompt.ObjectText = "Action"
 
-local connection, ProximityPrompt = Prompt:once("do something once", function (self, Player)
-    Prompt.ProximityPrompt.Enabled = false
+local connection = Prompt:once("do something once", function (self, Player)
+    ProximityPrompt.Enabled = false
     print("triggered once")
 end)
 
 connection:onDisconnect(function (self)
     -- disable the default functionality
     task.delay(3, function ()
-        local connection, ProximityPrompt = Prompt:once("do something once again", function (self, Player)
+        local connection = Prompt:once("do something once again", function (self, Player)
             print("triggered once again")
         end)
         

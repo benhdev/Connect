@@ -14,7 +14,7 @@ https://www.roblox.com/library/13518158092/ConnectFramework
 #### v1.2 updates
 
 - Support for [Rojo](https://rojo.space/docs)
-- Introduction of [Sessions](#handling-sessions) & [Events](#using-events)
+- Introduction of [Sessions](#handling-sessions), [Events](#using-events) & [Prompts](#using-prompts)
 - Introduction of initial [Data Storage & Retrieval](#data-storage--retrieval) functionality
 
 ## Getting Started
