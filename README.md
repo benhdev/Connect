@@ -516,6 +516,17 @@ end)
 > [!WARNING]
 >
 > <sub>By default, `Prompt:once` will **Destroy** the ProximityPrompt once the action has been triggered. This functionality can be disabled by setting a new callback for `onDisconnect`</sub>
+>
+> ```lua
+> local Prompt = Connect:prompt()
+> local ProximityPrompt, connection = Prompt:once(part, "do something once", function (self, Player)
+>     print("triggered once")
+> end)
+>
+> connection:onDisconnect(function (self)
+>     -- this disables the default functionality
+> end)
+> ```
 
 ### Error Handling
 

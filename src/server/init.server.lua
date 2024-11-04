@@ -31,22 +31,22 @@ end)
 
 local part = workspace:WaitForChild("Part", 5)
 
-local Prompt = Connect:prompt()
-local ProximityPrompt, connection = Prompt:create(part, "do something", function (self, Player)
-    print("triggered")
-end)
+-- local Prompt = Connect:prompt()
+-- local ProximityPrompt, connection = Prompt:create(part, "do something", function (self, Player)
+--     print("triggered")
+-- end)
 
-connection:onDisconnect(function (self)
-    -- disable default functionality
-end)
-
-connection:onDisconnect(function (self)
-    print("THIS ONE DISCONNECTED!")
-end)
+-- connection:onDisconnect(function (self)
+--     print("THIS ONE DISCONNECTED!")
+-- end)
 
 local Prompt = Connect:prompt()
 local ProximityPrompt, connection = Prompt:once(part, "do something once", function (self, Player)
     print("triggered once")
+end)
+
+connection:onDisconnect(function (self)
+    -- disable default functionality
 end)
 
 -- Connect:DebugEnabled("internal")
