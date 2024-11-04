@@ -350,6 +350,23 @@ connection:onDisconnect(function (self)
 end)
 ```
 
+Using multiple Parts
+
+```lua
+local Prompt = Connect:prompt()
+
+local connection = Prompt:once(part1, "do something once", function (self, Player)
+    print("triggered once")
+end)
+
+connection:onDisconnect(function (self)
+    -- disable the default functionality
+    local connection = Prompt:once(part2, "do something once again", function (self, Player)
+        print("triggered once again")
+    end)
+end)
+```
+
 ### Data Storage & Retrieval
 
 Connect provides various utilities to make handling datastores easier

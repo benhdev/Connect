@@ -1,28 +1,29 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
 
-local part = workspace:WaitForChild("Part", 5)
+print("here1")
+
+local part1 = workspace:WaitForChild("Part1", 5)
+local part2 = workspace:WaitForChild("Part2", 5)
+
+print("here")
 
 -- Create the session
 local Session = Connect:session()
 local Event = Connect:event()
 
 
-local Prompt, ProximityPrompt = Connect:prompt(part)
-ProximityPrompt.ObjectText = "Action"
+local Prompt = Connect:prompt()
 
-local connection = Prompt:once("do something once", function (self, Player)
-    ProximityPrompt.Enabled = false
+local connection = Prompt:once(part1, "do something once", function (self, Player)
     print("triggered once")
 end)
 
 connection:onDisconnect(function (self)
     -- disable the default functionality
-    task.delay(3, function ()
-        local connection = Prompt:once("do something once again", function (self, Player)
-            print("triggered once again")
-        end)
-        
-        ProximityPrompt.Enabled = true
+    local connection = Prompt:once(part2, "do something once again", function (self, Player)
+        print("triggered once again")
     end)
 end)
+
+print("here")
