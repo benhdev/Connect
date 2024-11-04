@@ -296,6 +296,8 @@ Event:fire("action", 1, 2)
 
 ### Using Prompts
 
+Connect provides various prompt utilities which can be used to integrate ProximityPrompt functionality
+
 Creating a new Prompt
 
 ```lua
