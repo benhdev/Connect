@@ -519,6 +519,7 @@ end)
 >
 > ```lua
 > local Prompt = Connect:prompt()
+>
 > local ProximityPrompt, connection = Prompt:once(part, "do something once", function (self, Player)
 >     print("triggered once")
 > end)
