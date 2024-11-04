@@ -72,4 +72,4 @@ function module:Initialize()
     return self
 end
 
-return module:Initialize(), module:event():dispatch('onReady')
+return module:Initialize()
