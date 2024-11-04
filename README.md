@@ -496,9 +496,9 @@ print(DataStoreRequest:finished())
 Creating a new Prompt
 
 ```lua
-local Prompt = Connect:prompt()
+local Prompt = Connect:prompt(part)
 
-local ProximityPrompt, connection = Prompt:create(part, "do something", function (self, Player)
+Prompt:create("do something", function (self, Player)
     print("triggered")
 end)
 ```
@@ -506,9 +506,9 @@ end)
 Creating a single-use Prompt
 
 ```lua
-local Prompt = Connect:prompt()
+local Prompt = Connect:prompt(part)
 
-local ProximityPrompt, connection = Prompt:once(part, "do something once", function (self, Player)
+Prompt:once("do something once", function (self, Player)
     print("triggered once")
 end)
 ```
@@ -518,29 +518,30 @@ end)
 > By default, `Prompt:once` will **destroy** the ProximityPrompt once the action has been triggered. This functionality can be disabled by setting a new callback for `onDisconnect`
 >
 > ```lua
-> local Prompt = Connect:prompt()
+> local Prompt = Connect:prompt(part)
 >
-> local ProximityPrompt, connection = Prompt:once(part, "do something once", function (self, Player)
+> local connection = Prompt:once("do something once", function (self, Player)
 >     print("triggered once")
 > end)
 >
 > connection:onDisconnect(function (self)
 >     -- disable the default functionality
+>     -- Prompt.ProximityPrompt:Destroy()
 > end)
 > ```
 
 Chaining multiple single-use Prompts
 
 ```lua
-local Prompt = Connect:prompt()
+local Prompt = Connect:prompt(part)
 
-local ProximityPrompt, connection = Prompt:once(part, "do something once", function (self, Player)
+local connection = Prompt:once("do something once", function (self, Player)
     print("triggered once")
 end)
 
 connection:onDisconnect(function (self)
     -- disable the default functionality
-    local ProximityPrompt, connection = Prompt:once(part, "do something once again", function (self, Player)
+    local connection = Prompt:once("do something once again", function (self, Player)
         print("triggered once again")
     end)
 end)

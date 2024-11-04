@@ -1,26 +1,46 @@
 return {
-    prompt = function (Connect, instance, label, callback)
+    prompt = function (Connect, instance)
         return {
-            prompt = Instance.new("ProximityPrompt"),
+            Instance = instance,
+
+            ProximityPrompt = Instance.new("ProximityPrompt"),
+
+            Connection = nil,
 
             initialize = function (self, instance, label)
-                self.prompt.ActionText = label
-                self.prompt.HoldDuration = 0.3
-                self.prompt.Parent = instance
+                self.ProximityPrompt.ActionText = label
+                self.ProximityPrompt.HoldDuration = 0.3
+                self.ProximityPrompt.Parent = instance
 
-                return self.prompt
+                return self.ProximityPrompt
             end,
 
             create = function (self, instance, label, callback)
+                if typeof(instance) == "string" then
+                    callback = label
+                    label = instance
+                    instance = self.Instance
+                end
+
                 self:initialize(instance, label)
-                return self.prompt, Connect:create(self.prompt, "Triggered", callback)
+                self.Connection = Connect:create(self.ProximityPrompt, "Triggered", callback)
+
+                return self.Connection, self.ProximityPrompt
             end,
 
             once = function (self, instance, label, callback)
+                if typeof(instance) == "string" then
+                    callback = label
+                    label = instance
+                    instance = self.Instance
+                end
+
                 local prompt = self:initialize(instance, label)
-                return self.prompt, Connect:once(self.prompt, "Triggered", callback):onDisconnect(function (self)
+                self.Connection = Connect:once(self.ProximityPrompt, "Triggered", callback):onDisconnect(function (self)
                     prompt:Destroy()
                 end)
+
+                return self.Connection, self.ProximityPrompt
             end,
         }
         

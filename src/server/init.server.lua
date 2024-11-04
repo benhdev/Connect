@@ -29,29 +29,5 @@ Connect:create("PlayerRemoving", function (self, Player)
     Event:dispatch("store", Player)
 end)
 
-local part = workspace:WaitForChild("Part", 5)
-
--- local Prompt = Connect:prompt()
--- local ProximityPrompt, connection = Prompt:create(part, "do something", function (self, Player)
---     print("triggered")
--- end)
-
--- connection:onDisconnect(function (self)
---     print("THIS ONE DISCONNECTED!")
--- end)
-
-local Prompt = Connect:prompt()
-
-local ProximityPrompt, connection = Prompt:once(part, "do something once", function (self, Player)
-    print("triggered once")
-end)
-
-connection:onDisconnect(function (self)
-    -- disable default functionality
-    local ProximityPrompt, connection = Prompt:once(part, "do something once again", function (self, Player)
-        print("triggered once again")
-    end)
-end)
-
 -- Connect:DebugEnabled("internal")
 Connect:Counter()
