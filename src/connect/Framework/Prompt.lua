@@ -1,6 +1,6 @@
 return {
     prompt = function (Connect, instance)
-        return {
+        local prompt = {
             Instance = instance,
 
             ProximityPrompt = Instance.new("ProximityPrompt"),
@@ -43,6 +43,8 @@ return {
                 return self.Connection, self.ProximityPrompt
             end,
         }
+
+        return prompt, prompt.ProximityPrompt
         
     end
 }

@@ -8,7 +8,8 @@ local Session = Connect:session()
 local Event = Connect:event()
 
 
-local Prompt = Connect:prompt(part)
+local Prompt, ProximityPrompt = Connect:prompt(part)
+ProximityPrompt.ObjectText = "Action"
 
 local connection, ProximityPrompt = Prompt:once("do something once", function (self, Player)
     Prompt.ProximityPrompt.Enabled = false
