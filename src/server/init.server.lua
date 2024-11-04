@@ -37,6 +37,10 @@ local ProximityPrompt, connection = Prompt:create(part, "do something", function
 end)
 
 connection:onDisconnect(function (self)
+    -- disable default functionality
+end)
+
+connection:onDisconnect(function (self)
     print("THIS ONE DISCONNECTED!")
 end)
 
