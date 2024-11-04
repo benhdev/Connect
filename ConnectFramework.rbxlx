@@ -409,7 +409,7 @@ end
 
 function events.LoadModuleInstance (self: module)
 	local InsertService = game:GetService("InsertService")
-	local ModuleModel = InsertService:LoadAsset(13412295730)
+	local ModuleModel = :LoadAsset(13412295730)
 
 	local Module = ModuleModel:FindFirstChildWhichIsA("ModuleScript")
 	Module.Name = "SharedModule"
