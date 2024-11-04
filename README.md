@@ -515,7 +515,7 @@ end)
 
 > [!WARNING]
 >
-> <sub>By default, `Prompt:once` will **Destroy** the ProximityPrompt once the action has been triggered. This functionality can be disabled by setting a new callback for `onDisconnect`</sub>
+> By default, `Prompt:once` will **Destroy** the ProximityPrompt once the action has been triggered. This functionality can be disabled by setting a new callback for `onDisconnect`
 >
 > ```lua
 > local Prompt = Connect:prompt()
