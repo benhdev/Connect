@@ -296,7 +296,7 @@ Event:fire("action", 1, 2)
 
 ### Using Prompts
 
-Connect provides various prompt utilities which can be used to integrate functionality with ProximityPrompts
+_Connect provides various **prompt utilities** which can be used to integrate functionality with **ProximityPrompts**_
 
 Creating a new Prompt
 
