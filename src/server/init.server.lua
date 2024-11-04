@@ -29,9 +29,5 @@ Connect:create("PlayerRemoving", function (self, Player)
     Event:dispatch("store", Player)
 end)
 
-
-Event:listen('onReady', function ()
-    print("ready")
-end)
 -- Connect:DebugEnabled("internal")
 Connect:Counter()
