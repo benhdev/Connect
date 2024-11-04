@@ -294,6 +294,62 @@ Event:fire("action", 1, 2)
 > end)
 > ```
 
+### Using Prompts
+
+Creating a new Prompt
+
+```lua
+local Prompt = Connect:prompt(part)
+
+Prompt:create("do something", function (self, Player)
+    print("triggered")
+end)
+```
+
+Creating a single-use Prompt
+
+```lua
+local Prompt = Connect:prompt(part)
+
+Prompt:once("do something once", function (self, Player)
+    print("triggered once")
+end)
+```
+
+> [!WARNING]
+>
+> By default, `Prompt:once` will **destroy** the ProximityPrompt once the action has been triggered. This functionality can be disabled by setting a new callback for `onDisconnect`
+>
+> ```lua
+> local Prompt = Connect:prompt(part)
+>
+> local connection = Prompt:once("do something once", function (self, Player)
+>     print("triggered once")
+> end)
+>
+> connection:onDisconnect(function (self)
+>     -- disable the default functionality
+>     -- Prompt.ProximityPrompt:Destroy()
+> end)
+> ```
+
+Chaining multiple single-use Prompts
+
+```lua
+local Prompt = Connect:prompt(part)
+
+local connection = Prompt:once("do something once", function (self, Player)
+    print("triggered once")
+end)
+
+connection:onDisconnect(function (self)
+    -- disable the default functionality
+    local connection = Prompt:once("do something once again", function (self, Player)
+        print("triggered once again")
+    end)
+end)
+```
+
 ### Data Storage & Retrieval
 
 Connect provides various utilities to make handling datastores easier
@@ -490,62 +546,6 @@ print(DataStoreRequest:finished())
 >     return Leaderstats, Points
 > end)
 > ```
-
-### Using Prompts
-
-Creating a new Prompt
-
-```lua
-local Prompt = Connect:prompt(part)
-
-Prompt:create("do something", function (self, Player)
-    print("triggered")
-end)
-```
-
-Creating a single-use Prompt
-
-```lua
-local Prompt = Connect:prompt(part)
-
-Prompt:once("do something once", function (self, Player)
-    print("triggered once")
-end)
-```
-
-> [!WARNING]
->
-> By default, `Prompt:once` will **destroy** the ProximityPrompt once the action has been triggered. This functionality can be disabled by setting a new callback for `onDisconnect`
->
-> ```lua
-> local Prompt = Connect:prompt(part)
->
-> local connection = Prompt:once("do something once", function (self, Player)
->     print("triggered once")
-> end)
->
-> connection:onDisconnect(function (self)
->     -- disable the default functionality
->     -- Prompt.ProximityPrompt:Destroy()
-> end)
-> ```
-
-Chaining multiple single-use Prompts
-
-```lua
-local Prompt = Connect:prompt(part)
-
-local connection = Prompt:once("do something once", function (self, Player)
-    print("triggered once")
-end)
-
-connection:onDisconnect(function (self)
-    -- disable the default functionality
-    local connection = Prompt:once("do something once again", function (self, Player)
-        print("triggered once again")
-    end)
-end)
-```
 
 ### Error Handling
 
