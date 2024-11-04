@@ -513,7 +513,7 @@ local ProximityPrompt, connection = Prompt:once(part, "do something once", funct
 end)
 ```
 
-> [!NOTE]
+> [!WARNING]
 >
 > <sub>By default, `Prompt:once` will **Destroy** the ProximityPrompt once the action has been triggered. This functionality can be disabled by setting a new callback for `onDisconnect`</sub>
 
