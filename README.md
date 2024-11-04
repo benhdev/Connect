@@ -503,7 +503,7 @@ local ProximityPrompt, connection = Prompt:create(part, "do something", function
 end)
 ```
 
-Creating a single use Prompt
+Creating a single-use Prompt
 
 ```lua
 local Prompt = Connect:prompt()
@@ -525,9 +525,26 @@ end)
 > end)
 >
 > connection:onDisconnect(function (self)
->     -- this disables the default functionality
+>     -- disable the default functionality
 > end)
 > ```
+
+Chaining multiple single-use Prompts
+
+```lua
+local Prompt = Connect:prompt()
+
+local ProximityPrompt, connection = Prompt:once(part, "do something once", function (self, Player)
+    print("triggered once")
+end)
+
+connection:onDisconnect(function (self)
+    -- disable the default functionality
+    local ProximityPrompt, connection = Prompt:once(part, "do something once again", function (self, Player)
+        print("triggered once again")
+    end)
+end)
+```
 
 ### Error Handling
 

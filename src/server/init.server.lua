@@ -41,12 +41,16 @@ local part = workspace:WaitForChild("Part", 5)
 -- end)
 
 local Prompt = Connect:prompt()
+
 local ProximityPrompt, connection = Prompt:once(part, "do something once", function (self, Player)
     print("triggered once")
 end)
 
 connection:onDisconnect(function (self)
     -- disable default functionality
+    local ProximityPrompt, connection = Prompt:once(part, "do something once again", function (self, Player)
+        print("triggered once again")
+    end)
 end)
 
 -- Connect:DebugEnabled("internal")
