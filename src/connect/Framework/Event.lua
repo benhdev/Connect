@@ -82,9 +82,6 @@ return {
             name = key,
 
             listen = function (self, key, callback)
-                local nest = key:split(".")
-                print(nest)
-
                 self.listeners[key] = callback
             end,
 
