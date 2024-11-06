@@ -169,6 +169,8 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 				if connection and connection.Connected then
 					self.onDisconnectHandlerCallback = handler
 				end
+
+				return self
 			end;
 		} :: module
 

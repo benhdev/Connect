@@ -30,3 +30,4 @@ Connect:create("PlayerRemoving", function (self, Player)
 end)
 
 -- Connect:DebugEnabled("internal")
+Connect:Counter()

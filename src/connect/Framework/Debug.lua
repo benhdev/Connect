@@ -18,6 +18,10 @@ function module.DebugEnabled (self, v)
 	return self.DebugMode
 end
 
+function module.env (self)
+	return if RunService:IsClient() then "client" else "server"
+end
+
 function module.CallstackLevel (self)
 	local depth = 0
 

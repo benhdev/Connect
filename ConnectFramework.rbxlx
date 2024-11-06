@@ -289,6 +289,10 @@ function module.DebugEnabled (self, v)
 	return self.DebugMode
 end
 
+function module.env (self)
+	return if RunService:IsClient() then "client" else "server"
+end
+
 function module.CallstackLevel (self)
 	local depth = 0
 
@@ -405,7 +409,7 @@ end
 
 function events.LoadModuleInstance (self: module)
 	local InsertService = game:GetService("InsertService")
-	local ModuleModel = InsertService:LoadAsset(13412295730)
+	local ModuleModel = :LoadAsset(13412295730)
 
 	local Module = ModuleModel:FindFirstChildWhichIsA("ModuleScript")
 	Module.Name = "SharedModule"
@@ -524,6 +528,63 @@ return module</string>
           </Properties>
         </Item>
         <Item class="ModuleScript" referent="10">
+          <Properties>
+            <string name="Name">Prompt</string>
+            <string name="Source">return {
+    prompt = function (Connect, instance)
+        local prompt = {
+            Instance = instance,
+
+            ProximityPrompt = Instance.new("ProximityPrompt"),
+
+            Connection = nil,
+
+            initialize = function (self, instance, label)
+                self.Instance = instance
+                
+                self.ProximityPrompt.ActionText = label
+                self.ProximityPrompt.HoldDuration = 0.3
+                self.ProximityPrompt.Parent = instance
+
+                return self.ProximityPrompt
+            end,
+
+            create = function (self, instance, label, callback)
+                if typeof(instance) == "string" then
+                    callback = label
+                    label = instance
+                    instance = self.Instance
+                end
+
+                self:initialize(instance, label)
+                self.Connection = Connect:create(self.ProximityPrompt, "Triggered", callback)
+
+                return self.Connection, self.ProximityPrompt
+            end,
+
+            once = function (self, instance, label, callback)
+                if typeof(instance) == "string" then
+                    callback = label
+                    label = instance
+                    instance = self.Instance
+                end
+
+                local prompt = self:initialize(instance, label)
+                self.Connection = Connect:once(self.ProximityPrompt, "Triggered", callback):onDisconnect(function (self)
+                    prompt:Destroy()
+                end)
+
+                return self.Connection, self.ProximityPrompt
+            end,
+        }
+
+        return prompt, prompt.ProximityPrompt
+        
+    end
+}</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="11">
           <Properties>
             <string name="Name">ProxyConnection</string>
             <string name="Source"><![CDATA[--!strict
@@ -697,6 +758,8 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 				if connection and connection.Connected then
 					self.onDisconnectHandlerCallback = handler
 				end
+
+				return self
 			end;
 		} :: module
 
@@ -801,7 +864,7 @@ return module
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="11">
+        <Item class="ModuleScript" referent="12">
           <Properties>
             <string name="Name">Signal</string>
             <string name="Source"><![CDATA[--!strict
@@ -854,11 +917,11 @@ return module
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="12">
+      <Item class="Folder" referent="13">
         <Properties>
           <string name="Name">Services</string>
         </Properties>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">DataService</string>
             <string name="Source"><![CDATA[--!strict
@@ -1033,7 +1096,7 @@ return framework
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="14">
+        <Item class="ModuleScript" referent="15">
           <Properties>
             <string name="Name">FeatureService</string>
             <string name="Source">-- --!strict
@@ -1272,7 +1335,7 @@ return framework
 return {}</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="16">
           <Properties>
             <string name="Name">HelperService</string>
             <string name="Source"><![CDATA[--!strict
@@ -1455,11 +1518,11 @@ return framework
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="16">
+      <Item class="Folder" referent="17">
         <Properties>
           <string name="Name">Threads</string>
         </Properties>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">Delay</string>
             <string name="Source">return function (self: module, seconds: number, key: string, callback: () -> ()): thread
@@ -1472,7 +1535,7 @@ return framework
 end</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">Thread</string>
             <string name="Source">--!strict
@@ -1504,11 +1567,11 @@ return module</string>
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="19">
+      <Item class="Folder" referent="20">
         <Properties>
           <string name="Name">Validation</string>
         </Properties>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Validate</string>
             <string name="Source"><![CDATA[--!strict
@@ -1583,17 +1646,17 @@ return module
         </Item>
       </Item>
     </Item>
-    <Item class="Folder" referent="21">
+    <Item class="Folder" referent="22">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="22">
+  <Item class="ServerScriptService" referent="23">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Script" referent="23">
+    <Item class="Script" referent="24">
       <Properties>
         <string name="Name">server</string>
         <token name="RunContext">0</token>
@@ -1607,6 +1670,20 @@ local Event = Connect:event()
 -- Register the PlayerAdded Connection
 local connection = Connect:create("PlayerAdded", function (self, Player)
     Event:dispatch("fetch", Player)
+
+    Connect:create(Player, "CharacterAdded", function (self, Character)
+        local Stepped = Connect:create(Character, "RunService.Stepped", function (self, runTime, step)
+            print("step")
+            if self:CurrentCycle() == 100 then
+                self:Disconnect()
+            end
+        end)
+
+        Stepped:onDisconnect(function (self)
+            print("Stepped disconnected!")
+            print("Average run time:", self:AverageRunTime())
+        end)
+    end)
 end)
 
 -- Register the PlayerRemoving connection
@@ -1614,9 +1691,10 @@ Connect:create("PlayerRemoving", function (self, Player)
     Event:dispatch("store", Player)
 end)
 
--- Connect:DebugEnabled("internal")</string>
+-- Connect:DebugEnabled("internal")
+Connect:Counter()</string>
       </Properties>
-      <Item class="Script" referent="24">
+      <Item class="Script" referent="25">
         <Properties>
           <string name="Name">datastore</string>
           <token name="RunContext">0</token>
@@ -1713,7 +1791,7 @@ end)
 -- print(nest.Data)</string>
         </Properties>
       </Item>
-      <Item class="Script" referent="25">
+      <Item class="Script" referent="26">
         <Properties>
           <string name="Name">events</string>
           <token name="RunContext">0</token>
@@ -1789,7 +1867,7 @@ Event:listen("createLeaderboard.finished", function ()
 end)</string>
         </Properties>
       </Item>
-      <Item class="Script" referent="26">
+      <Item class="Script" referent="27">
         <Properties>
           <string name="Name">old</string>
           <token name="RunContext">0</token>
@@ -1920,34 +1998,62 @@ end)</string>
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="27">
+  <Item class="SoundService" referent="28">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="28">
+  <Item class="StarterPlayer" referent="29">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="29">
+    <Item class="StarterPlayerScripts" referent="30">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="30">
+      <Item class="LocalScript" referent="31">
         <Properties>
           <string name="Name">client</string>
-          <string name="Source">print("Hello world, from client!")</string>
+          <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+print("here1")
+
+local part1 = workspace:WaitForChild("Part1", 5)
+local part2 = workspace:WaitForChild("Part2", 5)
+
+print("here")
+
+-- Create the session
+local Session = Connect:session()
+local Event = Connect:event()
+
+
+local Prompt = Connect:prompt()
+
+local connection = Prompt:once(part1, "do something once", function (self, Player)
+    print("triggered once")
+end)
+
+connection:onDisconnect(function (self)
+    -- disable the default functionality
+    local connection = Prompt:once(part2, "do something once again", function (self, Player)
+        print("triggered once again")
+    end)
+end)
+
+print("here")</string>
         </Properties>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="31">
+  <Item class="Workspace" referent="32">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
     </Properties>
-    <Item class="Part" referent="32">
+    <Item class="Part" referent="33">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>

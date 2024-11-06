@@ -70,15 +70,6 @@ function events.FormatNumber (self: module, num: number): string
 	return self:RoundDecimal(num / (1000 ^ exponent), 2) .. key
 end
 
-function events.LoadModuleInstance (self: module)
-	local InsertService = game:GetService("InsertService")
-	local ModuleModel = InsertService:LoadAsset(13412295730)
-
-	local Module = ModuleModel:FindFirstChildWhichIsA("ModuleScript")
-	Module.Name = "SharedModule"
-	Module.Parent = game:GetService("ReplicatedStorage")
-end
-
 local globalEvents = {}
 
 return {
@@ -91,6 +82,9 @@ return {
             name = key,
 
             listen = function (self, key, callback)
+                local nest = key:split(".")
+                print(nest)
+
                 self.listeners[key] = callback
             end,
 
@@ -102,7 +96,7 @@ return {
                 return nil
             end,
 
-            fire = function (self, key, ...)
+            dispatch = function (self, key, ...)
                 if self.listeners[key] then
                     local response = table.pack(self.listeners[key](...))
 
@@ -119,7 +113,7 @@ return {
             listeners = {},
         }
 
-        event.dispatch = event.fire
+        event.fire = event.dispatch
 
         globalEvents[key] = event
 

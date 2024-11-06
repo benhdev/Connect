@@ -14,7 +14,7 @@ https://www.roblox.com/library/13518158092/ConnectFramework
 #### v1.2 updates
 
 - Support for [Rojo](https://rojo.space/docs)
-- Introduction of [Sessions](#handling-sessions) & [Events](#using-events)
+- Introduction of [Sessions](#handling-sessions), [Events](#using-events) & [Prompts](#using-prompts)
 - Introduction of initial [Data Storage & Retrieval](#data-storage--retrieval) functionality
 
 ## Getting Started
@@ -293,6 +293,81 @@ Event:fire("action", 1, 2)
 >     print(response) -- 3
 > end)
 > ```
+
+### Using Prompts
+
+Connect provides various **prompt utilities** which can be used to integrate functionality with **ProximityPrompts**
+
+Creating a new Prompt
+
+```lua
+local Prompt = Connect:prompt(part)
+
+Prompt:create("do something", function (self, Player)
+    print("triggered")
+end)
+```
+
+Creating a single-use Prompt
+
+```lua
+local Prompt = Connect:prompt(part)
+
+Prompt:once("do something once", function (self, Player)
+    print("triggered once")
+end)
+```
+
+> [!WARNING]
+>
+> By default, `Prompt:once` will **destroy** the ProximityPrompt once the action has been triggered. This functionality can be disabled by setting a new callback for `onDisconnect`
+>
+> ```lua
+> local Prompt = Connect:prompt(part)
+>
+> local connection = Prompt:once("do something once", function (self, Player)
+>     print("triggered once")
+> end)
+>
+> connection:onDisconnect(function (self)
+>     -- disable the default functionality
+>     -- Prompt.ProximityPrompt:Destroy()
+> end)
+> ```
+
+Chaining multiple single-use Prompts
+
+```lua
+local Prompt = Connect:prompt(part)
+
+local connection = Prompt:once("do something once", function (self, Player)
+    print("triggered once")
+end)
+
+connection:onDisconnect(function (self)
+    -- disable the default functionality
+    local connection = Prompt:once("do something once again", function (self, Player)
+        print("triggered once again")
+    end)
+end)
+```
+
+Using a Prompt with multiple parts
+
+```lua
+local Prompt = Connect:prompt()
+
+local connection = Prompt:once(part1, "do something once", function (self, Player)
+    print("triggered once")
+end)
+
+connection:onDisconnect(function (self)
+    -- disable the default functionality
+    local connection = Prompt:once(part2, "do something once again", function (self, Player)
+        print("triggered once again")
+    end)
+end)
+```
 
 ### Data Storage & Retrieval
 
