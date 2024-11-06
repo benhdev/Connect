@@ -407,15 +407,6 @@ function events.FormatNumber (self: module, num: number): string
 	return self:RoundDecimal(num / (1000 ^ exponent), 2) .. key
 end
 
-function events.LoadModuleInstance (self: module)
-	local InsertService = game:GetService("InsertService")
-	local ModuleModel = :LoadAsset(13412295730)
-
-	local Module = ModuleModel:FindFirstChildWhichIsA("ModuleScript")
-	Module.Name = "SharedModule"
-	Module.Parent = game:GetService("ReplicatedStorage")
-end
-
 local globalEvents = {}
 
 return {
@@ -428,6 +419,9 @@ return {
             name = key,
 
             listen = function (self, key, callback)
+                local nest = key:split(".")
+                print(nest)
+
                 self.listeners[key] = callback
             end,
 
@@ -439,7 +433,7 @@ return {
                 return nil
             end,
 
-            fire = function (self, key, ...)
+            dispatch = function (self, key, ...)
                 if self.listeners[key] then
                     local response = table.pack(self.listeners[key](...))
 
@@ -456,7 +450,7 @@ return {
             listeners = {},
         }
 
-        event.dispatch = event.fire
+        event.fire = event.dispatch
 
         globalEvents[key] = event
 
@@ -541,7 +535,7 @@ return module</string>
 
             initialize = function (self, instance, label)
                 self.Instance = instance
-                
+
                 self.ProximityPrompt.ActionText = label
                 self.ProximityPrompt.HoldDuration = 0.3
                 self.ProximityPrompt.Parent = instance
@@ -579,7 +573,6 @@ return module</string>
         }
 
         return prompt, prompt.ProximityPrompt
-        
     end
 }</string>
           </Properties>
@@ -2018,32 +2011,24 @@ end)</string>
           <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
 
-print("here1")
-
-local part1 = workspace:WaitForChild("Part1", 5)
-local part2 = workspace:WaitForChild("Part2", 5)
-
-print("here")
+local part = workspace:WaitForChild("Part", 5)
 
 -- Create the session
 local Session = Connect:session()
 local Event = Connect:event()
 
+local Prompt = Connect:prompt(part)
 
-local Prompt = Connect:prompt()
-
-local connection = Prompt:once(part1, "do something once", function (self, Player)
+local connection = Prompt:once("do something once", function (self, Player)
     print("triggered once")
 end)
 
 connection:onDisconnect(function (self)
     -- disable the default functionality
-    local connection = Prompt:once(part2, "do something once again", function (self, Player)
+    local connection = Prompt:once("do something once again", function (self, Player)
         print("triggered once again")
     end)
-end)
-
-print("here")</string>
+end)</string>
         </Properties>
       </Item>
     </Item>
