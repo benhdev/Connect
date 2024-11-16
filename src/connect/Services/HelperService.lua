@@ -9,11 +9,11 @@ type object = table<string>
 local framework: module = {} :: module
 local HelperService: module = {} :: module
 
-local session = {}
+local session = { updateHandlers = {}, }
 
-function framework.Session (self, object: object?)
+function framework.Session (self, key: string?, initialData: object?)
 	local storage: object = session
-	storage.Data = object or session.Data or {}
+	storage.Data = session.Data or {}
 
 	function storage:Get (key): any?
 		local key = tostring(key)
@@ -104,8 +104,6 @@ function framework.Session (self, object: object?)
 		end
 	end
 	
-	storage.updateHandlers = {}
-	
 	function storage:onUpdate (key, callback)
 		if typeof(key) == "function" then
 			rawset(self, "onUpdateHandler", key)
@@ -138,6 +136,15 @@ function framework.Session (self, object: object?)
 	storage.delete = storage.Remove
 	
 	storage.key = storage.Key
+
+	if (typeof(key) == 'table') then
+		initialData = key
+		key = 'core'
+	end
+
+	if (key and initialData) then
+		storage:store(key, initialData)
+	end
 
 	return setmetatable(storage, {
 		__index = function (self, key)

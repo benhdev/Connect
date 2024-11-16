@@ -347,6 +347,7 @@ local events: module = {} :: module
 events.RandomGenerator = Random.new(os.time())
 
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Players = game:GetService('Players')
 
 function events.GetRemote (self: module, name: string): RemoteEvent | RemoteFunction
 	return ReplicatedStorage:WaitForChild(name, 5)
@@ -413,10 +414,29 @@ return {
     -- EventHelpers = events,
 
     event = function (self, key)
-        key = key or "global"
+        local framework = self
+        key = key or "Global"
+
+        local RemoteEvent
+
+        if framework:env() == "client" then
+            RemoteEvent = ReplicatedStorage:WaitForChild(`{key}Event`, 7)
+            if not RemoteEvent then
+                error(`{key}Event Not Found in ReplicatedStorage - Ensure you set up the event first on the server`)
+            end
+        else
+            RemoteEvent = ReplicatedStorage:FindFirstChild(`{key}Event`) or Instance.new('RemoteEvent')
+
+            if RemoteEvent.Parent ~= ReplicatedStorage then
+                RemoteEvent.Name = `{key}Event`
+                RemoteEvent.Parent = ReplicatedStorage
+            end
+        end
 
         local event = globalEvents[key] or {
             name = key,
+
+            remote = RemoteEvent,
 
             listen = function (self, key, callback)
                 self.listeners[key] = callback
@@ -442,6 +462,41 @@ return {
                 else
                     warn(`{key} Event not found`)
                 end
+            end,
+
+            broadcast = function (self, ...)
+                if framework:env() ~= "server" then return end
+                self.remote:FireAllClients(...)
+            end,
+
+            replicate = function (self, client: Player, ...)
+                if framework:env() ~= "server" then return end
+                self.remote:FireClient(client, ...)
+            end,
+
+            requested = function (self, callback)
+                if framework:env() ~= "server" then return end
+                return framework:create(self.remote.OnServerEvent, callback)
+            end,
+
+            requestedOnce = function (self, callback)
+                if framework:env() ~= "server" then return end
+                return framework:once(self.remote.OnServerEvent, callback)
+            end,
+
+            request = function (self, ...)
+                if framework:env() ~= "client" then return end
+                self.remote:FireServer(...)
+            end,
+            
+            replicated = function (self, callback)
+                if framework:env() ~= "client" then return end
+                return framework:create(self.remote.OnClientEvent, callback)
+            end,
+
+            replicatedOnce = function (self, callback)
+                if framework:env() ~= "client" then return end
+                return framework:once(self.remote.OnClientEvent, callback)
             end,
 
             listeners = {},
@@ -1339,11 +1394,11 @@ type object = table<string>
 local framework: module = {} :: module
 local HelperService: module = {} :: module
 
-local session = {}
+local session = { updateHandlers = {}, }
 
-function framework.Session (self, object: object?)
+function framework.Session (self, key: string?, initialData: object?)
 	local storage: object = session
-	storage.Data = object or session.Data or {}
+	storage.Data = session.Data or {}
 
 	function storage:Get (key): any?
 		local key = tostring(key)
@@ -1434,8 +1489,6 @@ function framework.Session (self, object: object?)
 		end
 	end
 	
-	storage.updateHandlers = {}
-	
 	function storage:onUpdate (key, callback)
 		if typeof(key) == "function" then
 			rawset(self, "onUpdateHandler", key)
@@ -1468,6 +1521,15 @@ function framework.Session (self, object: object?)
 	storage.delete = storage.Remove
 	
 	storage.key = storage.Key
+
+	if (typeof(key) == 'table') then
+		initialData = key
+		key = 'core'
+	end
+
+	if (key and initialData) then
+		storage:store(key, initialData)
+	end
 
 	return setmetatable(storage, {
 		__index = function (self, key)
@@ -1650,39 +1712,67 @@ return module
       <Properties>
         <string name="Name">server</string>
         <token name="RunContext">0</token>
-        <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+        <string name="Source">local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
--- Create the session
-local Session = Connect:session()
-local Event = Connect:event()
+-- Create the Event
+local Event = Connect:event("PlayerAdded")
 
--- Register the PlayerAdded Connection
-local connection = Connect:create("PlayerAdded", function (self, Player)
-    Event:dispatch("fetch", Player)
-
-    Connect:create(Player, "CharacterAdded", function (self, Character)
-        local Stepped = Connect:create(Character, "RunService.Stepped", function (self, runTime, step)
-            print("step")
-            if self:CurrentCycle() == 100 then
-                self:Disconnect()
-            end
-        end)
-
-        Stepped:onDisconnect(function (self)
-            print("Stepped disconnected!")
-            print("Average run time:", self:AverageRunTime())
-        end)
-    end)
+Event:requested(function (self, ...)
+    print(`Event requested:`, ...)
 end)
 
--- Register the PlayerRemoving connection
-Connect:create("PlayerRemoving", function (self, Player)
-    Event:dispatch("store", Player)
+Connect:create('PlayerAdded', function (self, Player)
+    Event:broadcast(Player)
 end)
 
--- Connect:DebugEnabled("internal")
-Connect:Counter()</string>
+-- -- Register the PlayerAdded Connection
+-- local connection = Connect:create('PlayerAdded', function (self, Player)
+--     Event:dispatch('fetch', Player)
+
+--     Connect:create(Player, 'CharacterAdded', function (self, Character)
+--         local Stepped = Connect:create(Character, 'RunService.Stepped', function (self, runTime, step)
+--             print('step')
+--             if self:CurrentCycle() == 100 then
+--                 print('here')
+--                 Event:broadcast(100)
+--                 self:Disconnect()
+--             end
+--         end)
+
+--         Stepped:onDisconnect(function (self)
+--             print('Stepped disconnected!')
+--             print('Average run time:', self:AverageRunTime())
+--         end)
+--     end)
+-- end)
+
+-- -- Register the PlayerRemoving connection
+-- Connect:create('PlayerRemoving', function (self, Player)
+--     Event:dispatch('store', Player)
+-- end)
+
+-- -- Connect:DebugEnabled('internal')
+-- Connect:Counter()
+
+-- -- Touch debounce
+-- Connect:create(Doorway.Portal, 'Touched', function (self, hit)
+-- 	if not open then return end
+	
+-- 	local Player = game.Players:GetPlayerFromCharacter(hit.Parent)
+-- 	if not Player then return end
+	
+-- 	if not Connect:Thread(Session:key(Player.UserId, 'teleport')) then
+-- 		local t = coroutine.create(function ()
+-- 			if Player and Player.Character then
+-- 				Player.Character:MoveTo(game.Workspace:FindFirstChild('PortalDestination').Position + Vector3.new(0, 11, 0))
+-- 			end
+-- 		end)
+		
+-- 		Connect:Thread(Session:key(Player.UserId, 'teleport'), t)
+-- 		coroutine.resume(t)
+-- 	end
+-- end)</string>
       </Properties>
       <Item class="Script" referent="25">
         <Properties>
@@ -2005,27 +2095,31 @@ end)</string>
       <Item class="LocalScript" referent="31">
         <Properties>
           <string name="Name">client</string>
-          <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+          <string name="Source">local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
-local part = workspace:WaitForChild("Part", 5)
+-- Create the Event
+local Event = Connect:event('PlayerAdded')
 
--- Create the session
-local Session = Connect:session()
-local Event = Connect:event()
-
-local Prompt = Connect:prompt(part)
-
-local connection = Prompt:once("do something once", function (self, Player)
-    print("triggered once")
+Event:replicated(function (self, ...)
+    print(`{Event.name} was replicated!`, ...)
+    Event:request('testing...')
 end)
 
-connection:onDisconnect(function (self)
-    -- disable the default functionality
-    local connection = Prompt:once("do something once again", function (self, Player)
-        print("triggered once again")
-    end)
-end)</string>
+-- local part = workspace:WaitForChild('Part', 5)
+
+-- local Prompt = Connect:prompt(part)
+
+-- local connection = Prompt:once('do something once', function (self, Player)
+--     print('triggered once')
+-- end)
+
+-- connection:onDisconnect(function (self)
+--     -- disable the default functionality
+--     local connection = Prompt:once('do something once again', function (self, Player)
+--         print('triggered once again')
+--     end)
+-- end)</string>
         </Properties>
       </Item>
     </Item>

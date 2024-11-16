@@ -294,6 +294,41 @@ Event:fire("action", 1, 2)
 > end)
 > ```
 
+Events may also be used for server to client replication and vice versa
+
+> <sub>init.server.lua</sub>
+>
+> ```lua
+> local ReplicatedStorage = game:GetService('ReplicatedStorage')
+> local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+>
+> -- Create the Event
+> local Event = Connect:event("PlayerAdded")
+>
+> Event:requested(function (self, ...)
+>     print(`Event requested:`, ...)
+> end)
+>
+> Connect:create('PlayerAdded', function (self, Player)
+>     Event:broadcast(Player)
+> end)
+> ```
+
+> <sub>init.client.lua</sub>
+>
+> ```lua
+> local ReplicatedStorage = game:GetService('ReplicatedStorage')
+> local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+>
+> -- Create the Event
+> local Event = Connect:event('PlayerAdded')
+>
+> Event:replicated(function (self, ...)
+>     print(`{Event.name} was replicated!`, ...)
+>     Event:request('testing...')
+> end)
+> ```
+
 ### Using Prompts
 
 Connect provides various **prompt utilities** which can be used to integrate functionality with **ProximityPrompts**

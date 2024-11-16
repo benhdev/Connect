@@ -10,6 +10,7 @@ local events: module = {} :: module
 events.RandomGenerator = Random.new(os.time())
 
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Players = game:GetService('Players')
 
 function events.GetRemote (self: module, name: string): RemoteEvent | RemoteFunction
 	return ReplicatedStorage:WaitForChild(name, 5)
@@ -76,10 +77,29 @@ return {
     -- EventHelpers = events,
 
     event = function (self, key)
-        key = key or "global"
+        local framework = self
+        key = key or "Global"
+
+        local RemoteEvent
+
+        if framework:env() == "client" then
+            RemoteEvent = ReplicatedStorage:WaitForChild(`{key}Event`, 7)
+            if not RemoteEvent then
+                error(`{key}Event Not Found in ReplicatedStorage - Ensure you set up the event first on the server`)
+            end
+        else
+            RemoteEvent = ReplicatedStorage:FindFirstChild(`{key}Event`) or Instance.new('RemoteEvent')
+
+            if RemoteEvent.Parent ~= ReplicatedStorage then
+                RemoteEvent.Name = `{key}Event`
+                RemoteEvent.Parent = ReplicatedStorage
+            end
+        end
 
         local event = globalEvents[key] or {
             name = key,
+
+            remote = RemoteEvent,
 
             listen = function (self, key, callback)
                 self.listeners[key] = callback
@@ -105,6 +125,41 @@ return {
                 else
                     warn(`{key} Event not found`)
                 end
+            end,
+
+            broadcast = function (self, ...)
+                if framework:env() ~= "server" then return end
+                self.remote:FireAllClients(...)
+            end,
+
+            replicate = function (self, client: Player, ...)
+                if framework:env() ~= "server" then return end
+                self.remote:FireClient(client, ...)
+            end,
+
+            requested = function (self, callback)
+                if framework:env() ~= "server" then return end
+                return framework:create(self.remote.OnServerEvent, callback)
+            end,
+
+            requestedOnce = function (self, callback)
+                if framework:env() ~= "server" then return end
+                return framework:once(self.remote.OnServerEvent, callback)
+            end,
+
+            request = function (self, ...)
+                if framework:env() ~= "client" then return end
+                self.remote:FireServer(...)
+            end,
+            
+            replicated = function (self, callback)
+                if framework:env() ~= "client" then return end
+                return framework:create(self.remote.OnClientEvent, callback)
+            end,
+
+            replicatedOnce = function (self, callback)
+                if framework:env() ~= "client" then return end
+                return framework:once(self.remote.OnClientEvent, callback)
             end,
 
             listeners = {},
