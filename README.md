@@ -340,8 +340,8 @@ local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
 Connect:create('PlayerAdded', function (self, Player)
-	-- Create a new Rig for the Player
-	local Rig = Connect:humanoid(Player)
+    -- Create a new Rig for the Player
+    local Rig = Connect:humanoid(Player)
 end)
 ```
 
@@ -352,12 +352,12 @@ local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
 Connect:create('PlayerAdded', function (self, Player)
-	-- Create a new Rig for the Player
-	local Rig = Connect:humanoid(Player)
+    -- Create a new Rig for the Player
+    local Rig = Connect:humanoid(Player)
 
-	if Rig:ready() then
-		print(Rig.Humanoid.Health)
-	end
+    if Rig:ready() then
+        print(Rig.Humanoid.Health)
+    end
 end)
 ```
 
@@ -368,12 +368,12 @@ local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
 Connect:create('PlayerAdded', function (self, Player)
-	-- Create a new Rig for the Player
-	local Rig = Connect:humanoid(Player)
+    -- Create a new Rig for the Player
+    local Rig = Connect:humanoid(Player)
 
-	Rig:ready(function (self, Humanoid, HumanoidRootPart)
-		print('Rig ready!', Humanoid.Health)
-	end)
+    Rig:ready(function (self, Humanoid, HumanoidRootPart)
+        print('Rig ready!', Humanoid.Health)
+    end)
 end)
 ```
 
@@ -384,12 +384,12 @@ local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
 Connect:create('PlayerAdded', function (self, Player)
-	-- Create a new Rig for the Player
-	local Rig = Connect:humanoid(Player)
+    -- Create a new Rig for the Player
+    local Rig = Connect:humanoid(Player)
 
-	Rig:added(function (self, Humanoid, HumanoidRootPart)
-		print('Rig added!', Humanoid.Health)
-	end)
+    Rig:added(function (self, Humanoid, HumanoidRootPart)
+        print('Rig added!', Humanoid.Health)
+    end)
 end)
 ```
 
