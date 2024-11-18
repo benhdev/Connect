@@ -10,52 +10,28 @@ end)
 
 Connect:create('PlayerAdded', function (self, Player)
     Event:broadcast(Player)
+
+    local Rig = Connect:humanoid(Player)
+    
+    Rig:ready(function (self, Humanoid, HumanoidRootPart)
+        print('READY - This runs once', self)
+
+        HumanoidRootPart:SetNetworkOwner(nil)
+        HumanoidRootPart:ApplyImpulse(Vector3.new(1000, 1000, 1000))
+
+        task.delay(3, HumanoidRootPart.SetNetworkOwner, HumanoidRootPart, Player)
+    end)
+
+    Rig:added(function (self, Humanoid, HumanoidRootPart)
+        print('ADDED - Each time the Rig is refreshed', self)
+        task.delay(1, self.damage, self, 47)
+
+        task.wait(3)
+
+        self:pivot(CFrame.new(0, 10, 0))
+    end)
+
+    Connect:humanoid(Player):added(function (Character)
+        print("ADDED 2", Character)
+    end)
 end)
-
--- -- Register the PlayerAdded Connection
--- local connection = Connect:create('PlayerAdded', function (self, Player)
---     Event:dispatch('fetch', Player)
-
---     Connect:create(Player, 'CharacterAdded', function (self, Character)
---         local Stepped = Connect:create(Character, 'RunService.Stepped', function (self, runTime, step)
---             print('step')
---             if self:CurrentCycle() == 100 then
---                 print('here')
---                 Event:broadcast(100)
---                 self:Disconnect()
---             end
---         end)
-
---         Stepped:onDisconnect(function (self)
---             print('Stepped disconnected!')
---             print('Average run time:', self:AverageRunTime())
---         end)
---     end)
--- end)
-
--- -- Register the PlayerRemoving connection
--- Connect:create('PlayerRemoving', function (self, Player)
---     Event:dispatch('store', Player)
--- end)
-
--- -- Connect:DebugEnabled('internal')
--- Connect:Counter()
-
--- -- Touch debounce
--- Connect:create(Doorway.Portal, 'Touched', function (self, hit)
--- 	if not open then return end
-	
--- 	local Player = game.Players:GetPlayerFromCharacter(hit.Parent)
--- 	if not Player then return end
-	
--- 	if not Connect:Thread(Session:key(Player.UserId, 'teleport')) then
--- 		local t = coroutine.create(function ()
--- 			if Player and Player.Character then
--- 				Player.Character:MoveTo(game.Workspace:FindFirstChild('PortalDestination').Position + Vector3.new(0, 11, 0))
--- 			end
--- 		end)
-		
--- 		Connect:Thread(Session:key(Player.UserId, 'teleport'), t)
--- 		coroutine.resume(t)
--- 	end
--- end)

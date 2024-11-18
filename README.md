@@ -329,6 +329,70 @@ Events may also be used for server to client replication and vice versa
 > end)
 > ```
 
+### Using Humanoids
+
+Connect **provides various utilities** which can be used to integrate functionality with the Roblox **Humanoid** Instance
+
+Creating a new Rig
+
+```lua
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+Connect:create('PlayerAdded', function (self, Player)
+	-- Create a new Rig for the Player
+	local Rig = Connect:humanoid(Player)
+end)
+```
+
+Detecting when the Rig is ready for use
+
+```lua
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+Connect:create('PlayerAdded', function (self, Player)
+	-- Create a new Rig for the Player
+	local Rig = Connect:humanoid(Player)
+
+	if Rig:ready() then
+		print(Rig.Humanoid.Health)
+	end
+end)
+```
+
+or by using a callback
+
+```lua
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+Connect:create('PlayerAdded', function (self, Player)
+	-- Create a new Rig for the Player
+	local Rig = Connect:humanoid(Player)
+
+	Rig:ready(function (self, Humanoid, HumanoidRootPart)
+		print('Rig ready!', Humanoid.Health)
+	end)
+end)
+```
+
+Listen to when the Rig is added/refreshed
+
+```lua
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+Connect:create('PlayerAdded', function (self, Player)
+	-- Create a new Rig for the Player
+	local Rig = Connect:humanoid(Player)
+
+	Rig:added(function (self, Humanoid, HumanoidRootPart)
+		print('Rig added!', Humanoid.Health)
+	end)
+end)
+```
+
 ### Using Prompts
 
 Connect provides various **prompt utilities** which can be used to integrate functionality with **ProximityPrompts**

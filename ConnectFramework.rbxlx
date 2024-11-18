@@ -103,6 +103,20 @@ return module:Initialize()
         </Properties>
         <Item class="ModuleScript" referent="4">
           <Properties>
+            <string name="Name">Camera</string>
+            <string name="Source">return {
+    camera = function (self)
+        return {
+            tween = function (self, Rig, options)
+                return {}
+            end,
+        }
+    end
+}</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="5">
+          <Properties>
             <string name="Name">Cleanup</string>
             <string name="Source">return function (self: module): ()
 	while task.wait(30) do
@@ -152,7 +166,7 @@ return module:Initialize()
 end</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="5">
+        <Item class="ModuleScript" referent="6">
           <Properties>
             <string name="Name">Connections</string>
             <string name="Source"><![CDATA[--!strict
@@ -266,7 +280,7 @@ return module
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="6">
+        <Item class="ModuleScript" referent="7">
           <Properties>
             <string name="Name">Debug</string>
             <string name="Source">--!strict
@@ -332,7 +346,7 @@ end
 return module</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="7">
+        <Item class="ModuleScript" referent="8">
           <Properties>
             <string name="Name">Event</string>
             <string name="Source"><![CDATA[--!strict
@@ -512,7 +526,7 @@ return {
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="8">
+        <Item class="ModuleScript" referent="9">
           <Properties>
             <string name="Name">GetArguments</string>
             <string name="Source"><![CDATA[return function (self: module, ...): (any, RBXScriptSignal, (module, ...any?) -> any?)
@@ -542,7 +556,176 @@ end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="9">
+        <Item class="ModuleScript" referent="10">
+          <Properties>
+            <string name="Name">Humanoid</string>
+            <string name="Source"><![CDATA[-- not tested this yet!
+
+return {
+    humanoid = function (self, Player)
+        local framework = self
+
+        if not Player then
+            error("No Player found for Humanoid")
+        end
+
+        local proxy = {
+            Player = Player or game.Players.LocalPlayer or nil,
+
+            Character = Player.Character or Player.CharacterAdded:Wait(),
+
+            Humanoid = nil,
+
+            HumanoidRootPart = nil,
+
+            onAddedCallback = nil,
+
+            onRiggedCallback = nil,
+
+            -- CORE FUNCTIONS
+
+            root = function (self, Player)
+                if not Player then Player = self.Player else self.Player = Player end
+
+                local Character = Player.Character
+                if not Character then 
+                    return
+                end
+
+                self.Character = Character
+                self.Humanoid = Character:WaitForChild('Humanoid', 3)
+                self.HumanoidRootPart = Character:WaitForChild("HumanoidRootPart", 3)
+
+                return self.Humanoid, self.HumanoidRootPart
+            end,
+
+            wait = function (self)
+                if self.HumanoidRootPart and self.HumanoidRootPart:IsDescendantOf(game.Workspace) then
+                    return true
+                end
+
+                repeat task.wait() until self.Humanoid and self.HumanoidRootPart and self.HumanoidRootPart:IsDescendantOf(game.Workspace) return true
+            end,
+
+            ready = function (self, callback)
+                if not callback then
+                    return self:wait()
+                end
+            
+                self.onRiggedCallback = callback
+            end,
+
+            added = function (self, callback)
+                if not callback then
+                    self:wait()
+                end
+
+                self.onAddedCallback = callback
+            end,
+
+            finished = function (self)
+                local proxy = self
+
+                if self.onRiggedCallback and self:wait() then
+                    self.onRiggedCallback(self, self.Humanoid, self.HumanoidRootPart)
+                end
+
+                if self.onAddedCallback then
+                    if not self.onRiggedCallback then
+                        self:wait()
+                    end
+
+                    framework:create(self.Player.UserId, self.Player.CharacterAdded, function (self, Character)
+                        return proxy:root(Player), proxy:wait(), proxy.onAddedCallback(proxy, proxy.Humanoid, proxy.HumanoidRootPart)
+                    end)
+
+                    self.onAddedCallback(self, self.Humanoid, self.HumanoidRootPart)
+                end
+            end,
+
+            -- GENERAL FUNCTIONS
+            -- These functions must first call self:wait()
+
+            damage = function  (self, amount: number, takeDamage: boolean)
+                self:wait()
+
+                if takeDamage then
+                    self.Humanoid:TakeDamage(amount)
+                end
+
+                self.Humanoid.Health -= (amount or 100)
+            end,
+
+            pivot = function (self, target: CFrame)
+                return self:wait(), self:PivotTo(target)
+            end,
+
+            animate = function (self)
+                self:wait()
+            end,
+        }
+
+        setmetatable(proxy, {
+            __index = function (self, key)
+                if (table.find({'onRiggedCallback', 'onAddedCallback'}, key)) then
+                    return
+                end
+
+                if rawget(self, 'Character') then
+                    local ref = self.Character[key]
+                    if not ref then 
+                        return 
+                    end
+
+                    if type(ref) == "function" then
+                        return function (this, arg)
+                            local success, result = pcall(ref, this.Character, arg)
+                            
+                            if not success then
+                                warn(result)
+                            end
+
+                            return success and result
+                        end
+                    end
+
+                end
+            end,
+        })
+
+        local Humanoid, HumanoidRootPart = proxy:root()
+        return proxy, Humanoid, HumanoidRootPart, task.defer(function ()
+            proxy:finished()
+        end)
+    end
+}
+
+-- An example would be
+
+-- local Rig, Humanoid, HumanoidRootPart = Connect:humanoid(Player)
+
+-- print(Rig, Rig.Humanoid, Rig.HumanoidRootPart, Humanoid, HumanoidRootPart)
+
+-- -- No need to pass player in LocalScripts
+-- local Rig = Connect:humanoid()
+-- local Camera = Connect:camera()
+
+-- local Humanoid, HumanoidRootPart = Rig:root()
+
+-- local Tween = Camera:tween(Rig, {
+
+-- })
+
+-- Refresh the humanoid state by passing the player into the root method
+
+-- local Rig, Humanoid = Connect:humanoid(Player)
+-- ...
+-- Rig:root(Player)
+-- print(Rig.HumanoidRootPart.Position)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="11">
           <Properties>
             <string name="Name">Pointers</string>
             <string name="Source">--!strict
@@ -573,7 +756,7 @@ end
 return module</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="10">
+        <Item class="ModuleScript" referent="12">
           <Properties>
             <string name="Name">Prompt</string>
             <string name="Source">return {
@@ -629,7 +812,7 @@ return module</string>
 }</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="11">
+        <Item class="ModuleScript" referent="13">
           <Properties>
             <string name="Name">ProxyConnection</string>
             <string name="Source"><![CDATA[--!strict
@@ -909,7 +1092,7 @@ return module
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="12">
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">Signal</string>
             <string name="Source"><![CDATA[--!strict
@@ -962,11 +1145,11 @@ return module
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="13">
+      <Item class="Folder" referent="15">
         <Properties>
           <string name="Name">Services</string>
         </Properties>
-        <Item class="ModuleScript" referent="14">
+        <Item class="ModuleScript" referent="16">
           <Properties>
             <string name="Name">DataService</string>
             <string name="Source"><![CDATA[--!strict
@@ -1141,7 +1324,7 @@ return framework
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">FeatureService</string>
             <string name="Source">-- --!strict
@@ -1380,7 +1563,7 @@ return framework
 return {}</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="16">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">HelperService</string>
             <string name="Source"><![CDATA[--!strict
@@ -1570,11 +1753,11 @@ return framework
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="17">
+      <Item class="Folder" referent="19">
         <Properties>
           <string name="Name">Threads</string>
         </Properties>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Delay</string>
             <string name="Source">return function (self: module, seconds: number, key: string, callback: () -> ()): thread
@@ -1587,7 +1770,7 @@ return framework
 end</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Thread</string>
             <string name="Source">--!strict
@@ -1619,11 +1802,11 @@ return module</string>
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="20">
+      <Item class="Folder" referent="22">
         <Properties>
           <string name="Name">Validation</string>
         </Properties>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Validate</string>
             <string name="Source"><![CDATA[--!strict
@@ -1698,17 +1881,17 @@ return module
         </Item>
       </Item>
     </Item>
-    <Item class="Folder" referent="22">
+    <Item class="Folder" referent="24">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="23">
+  <Item class="ServerScriptService" referent="25">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Script" referent="24">
+    <Item class="Script" referent="26">
       <Properties>
         <string name="Name">server</string>
         <token name="RunContext">0</token>
@@ -1724,57 +1907,33 @@ end)
 
 Connect:create('PlayerAdded', function (self, Player)
     Event:broadcast(Player)
-end)
 
--- -- Register the PlayerAdded Connection
--- local connection = Connect:create('PlayerAdded', function (self, Player)
---     Event:dispatch('fetch', Player)
+    local Rig = Connect:humanoid(Player)
+    
+    Rig:ready(function (self, Humanoid, HumanoidRootPart)
+        print('READY - This runs once', self)
 
---     Connect:create(Player, 'CharacterAdded', function (self, Character)
---         local Stepped = Connect:create(Character, 'RunService.Stepped', function (self, runTime, step)
---             print('step')
---             if self:CurrentCycle() == 100 then
---                 print('here')
---                 Event:broadcast(100)
---                 self:Disconnect()
---             end
---         end)
+        HumanoidRootPart:SetNetworkOwner(nil)
+        HumanoidRootPart:ApplyImpulse(Vector3.new(1000, 1000, 1000))
 
---         Stepped:onDisconnect(function (self)
---             print('Stepped disconnected!')
---             print('Average run time:', self:AverageRunTime())
---         end)
---     end)
--- end)
+        task.delay(3, HumanoidRootPart.SetNetworkOwner, HumanoidRootPart, Player)
+    end)
 
--- -- Register the PlayerRemoving connection
--- Connect:create('PlayerRemoving', function (self, Player)
---     Event:dispatch('store', Player)
--- end)
+    Rig:added(function (self, Humanoid, HumanoidRootPart)
+        print('ADDED - Each time the Rig is refreshed', self)
+        task.delay(1, self.damage, self, 47)
 
--- -- Connect:DebugEnabled('internal')
--- Connect:Counter()
+        task.wait(3)
 
--- -- Touch debounce
--- Connect:create(Doorway.Portal, 'Touched', function (self, hit)
--- 	if not open then return end
-	
--- 	local Player = game.Players:GetPlayerFromCharacter(hit.Parent)
--- 	if not Player then return end
-	
--- 	if not Connect:Thread(Session:key(Player.UserId, 'teleport')) then
--- 		local t = coroutine.create(function ()
--- 			if Player and Player.Character then
--- 				Player.Character:MoveTo(game.Workspace:FindFirstChild('PortalDestination').Position + Vector3.new(0, 11, 0))
--- 			end
--- 		end)
-		
--- 		Connect:Thread(Session:key(Player.UserId, 'teleport'), t)
--- 		coroutine.resume(t)
--- 	end
--- end)</string>
+        self:pivot(CFrame.new(0, 10, 0))
+    end)
+
+    Connect:humanoid(Player):added(function (Character)
+        print("ADDED 2", Character)
+    end)
+end)</string>
       </Properties>
-      <Item class="Script" referent="25">
+      <Item class="Script" referent="27">
         <Properties>
           <string name="Name">datastore</string>
           <token name="RunContext">0</token>
@@ -1871,7 +2030,7 @@ end)
 -- print(nest.Data)</string>
         </Properties>
       </Item>
-      <Item class="Script" referent="26">
+      <Item class="Script" referent="28">
         <Properties>
           <string name="Name">events</string>
           <token name="RunContext">0</token>
@@ -1947,7 +2106,7 @@ Event:listen("createLeaderboard.finished", function ()
 end)</string>
         </Properties>
       </Item>
-      <Item class="Script" referent="27">
+      <Item class="Script" referent="29">
         <Properties>
           <string name="Name">old</string>
           <token name="RunContext">0</token>
@@ -2078,21 +2237,21 @@ end)</string>
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="28">
+  <Item class="SoundService" referent="30">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="29">
+  <Item class="StarterPlayer" referent="31">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="30">
+    <Item class="StarterPlayerScripts" referent="32">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="31">
+      <Item class="LocalScript" referent="33">
         <Properties>
           <string name="Name">client</string>
           <string name="Source">local ReplicatedStorage = game:GetService('ReplicatedStorage')
@@ -2104,32 +2263,17 @@ local Event = Connect:event('PlayerAdded')
 Event:replicated(function (self, ...)
     print(`{Event.name} was replicated!`, ...)
     Event:request('testing...')
-end)
-
--- local part = workspace:WaitForChild('Part', 5)
-
--- local Prompt = Connect:prompt(part)
-
--- local connection = Prompt:once('do something once', function (self, Player)
---     print('triggered once')
--- end)
-
--- connection:onDisconnect(function (self)
---     -- disable the default functionality
---     local connection = Prompt:once('do something once again', function (self, Player)
---         print('triggered once again')
---     end)
--- end)</string>
+end)</string>
         </Properties>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="32">
+  <Item class="Workspace" referent="34">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
     </Properties>
-    <Item class="Part" referent="33">
+    <Item class="Part" referent="35">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>
