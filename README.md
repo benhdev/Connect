@@ -377,7 +377,7 @@ Connect:create('PlayerAdded', function (self, Player)
 end)
 ```
 
-Listen to when the Rig is added/refreshed
+Detecting when the Rig is added/refreshed
 
 ```lua
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
