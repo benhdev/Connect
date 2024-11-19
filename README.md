@@ -393,6 +393,47 @@ Connect:create('PlayerAdded', function (self, Player)
 end)
 ```
 
+Detecting when the Rig's Humanoid dies
+
+```lua
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+Connect:create('PlayerAdded', function (self, Player)
+    -- Create a new Rig for the Player
+    local Rig = Connect:humanoid(Player)
+
+    Rig:added(function (Character, Humanoid, HumanoidRootPart)
+        Character:died(function ()
+            print('Rig died!', Humanoid.Health)
+        end)
+    end)
+end)
+```
+
+> [!TIP]
+> The Humanoid utility callback methods (`ready`, `added` and `died`) all support the use of Events by passing the event listener name as the only argument
+>
+> ```lua
+> local ReplicatedStorage = game:GetService('ReplicatedStorage')
+> local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+>
+> local Event = Connect:event()
+>
+> Event:listen('Humanoid.Ready', function (Character)
+>     print(`{Character.Name} is ready!`)
+> end)
+>
+> Event:listen('Humanoid.Added', function (Character)
+>     print(`{Character.Name} was added!`)
+> end)
+>
+> Connect:create('PlayerAdded', function (self, Player)
+>     Connect:humanoid(Player):ready('Humanoid.Ready')
+>     Connect:humanoid(Player):added('Humanoid.Added')
+> end)
+> ```
+
 ### Using Prompts
 
 Connect provides various **prompt utilities** which can be used to integrate functionality with **ProximityPrompts**
