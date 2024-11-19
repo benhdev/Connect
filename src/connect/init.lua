@@ -69,6 +69,10 @@ function module:Initialize()
         }, callback)
     end
 
+    if self:env() == 'server' then
+        self:event()
+    end
+
     return self
 end
 
