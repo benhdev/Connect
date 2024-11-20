@@ -429,8 +429,9 @@ end)
 > end)
 >
 > Connect:create('PlayerAdded', function (self, Player)
->     Connect:humanoid(Player):ready('Humanoid.Ready')
->     Connect:humanoid(Player):added('Humanoid.Added')
+>     local Rig = Connect:humanoid(Player)
+>         :added('Humanoid.Added')
+>         :died('Humanoid.Died')
 > end)
 > ```
 
