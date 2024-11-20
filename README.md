@@ -412,13 +412,14 @@ end)
 ```
 
 > [!TIP]
-> The Humanoid utility callback methods (`ready`, `added` and `died`) all support the use of Events by passing the event listener name as the only argument
+> The Humanoid utility callback methods (`ready`, `added` and `died`) all support the use of Events by passing the event name <sub>(optional)</sub> and the event key<sub>**\*required**</sub> as the argument(s)
 >
 > ```lua
 > local ReplicatedStorage = game:GetService('ReplicatedStorage')
 > local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 >
 > local Event = Connect:event()
+> local HealthEvent = Connect:event('Health')
 >
 > Event:listen('Humanoid.Ready', function (Rig)
 >     print(`{Rig.Name} is ready!`)
@@ -428,7 +429,7 @@ end)
 >     print(`{Rig.Name} was added!`)
 > end)
 >
-> Event:listen('Humanoid.Died', function (Rig)
+> HealthEvent:listen('Humanoid.Died', function (Rig)
 >     print(`{Rig.Name} died!`)
 > end)
 >
@@ -436,7 +437,7 @@ end)
 >     local Rig = Connect:humanoid(Player)
 >         :ready('Humanoid.Ready')
 >         :added('Humanoid.Added')
->         :died('Humanoid.Died')
+>         :died('Health', 'Humanoid.Died')
 > end)
 > ```
 
