@@ -100,7 +100,7 @@ function DataService.proxy (self, callback, onError)
 		end;
 
 		sync = function (self)
-			repeat task.wait() until self:finished()
+			repeat task.wait() until self:finished() return true
 		end;
 
 		setFinished = function (self)

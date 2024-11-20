@@ -20,6 +20,7 @@ function module:Initialize()
             local package = require(item) :: module
             if typeof(package) == "function" then
                 self.framework[item.Name] = package
+                self.framework[item.Name:lower()] = package
             end
 
             if typeof(package) == "table" then
