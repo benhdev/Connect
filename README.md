@@ -412,7 +412,7 @@ end)
 ```
 
 > [!TIP]
-> The Humanoid utility callback methods (`ready`, `added` and `died`) all support the use of Events by passing the event name _(optional)_ and/or the event key as the argument(s)
+> The Humanoid utility callback methods (`ready`, `added` and `died`) all support the use of Events by passing the _(optional)_ event name and/or the event key as the argument(s)
 >
 > ```lua
 > local ReplicatedStorage = game:GetService('ReplicatedStorage')
