@@ -479,7 +479,7 @@ return {
 
                     return unpack(response)
                 else
-                    warn(`{key} Event not found`)
+                    warn(`[{self.name}] {key} Event not found`)
                 end
             end,
 
@@ -611,21 +611,42 @@ return function (framework, Player)
             repeat task.wait() until self.Humanoid and self.HumanoidRootPart and self.HumanoidRootPart:IsDescendantOf(game.Workspace) return self
         end,
 
-        ready = function (self, callback)
+        ready = function (self, eventName, callback)
+            if type(eventName) ~= "string" and type(eventName) ~= "function" and eventName then
+                return warn('Incorrect DataType passed ConnectHumanoid:added')
+            end
+
+            if not callback then
+                callback = eventName
+                eventName = nil
+            end
+
             if not callback then
                 return self:wait()
             end
         
+            self.onRiggedEventName = eventName
             self.onRiggedCallback = callback
             return self;
         end,
 
-        added = function (self, callback)
+        added = function (self, eventName, callback)
+
+            if type(eventName) ~= "string" and type(eventName) ~= "function" and eventName then
+                return warn('Incorrect DataType passed ConnectHumanoid:added')
+            end
+
+            if not callback then
+                callback = eventName
+                eventName = nil
+            end
+
             if not callback then
                 self.onAddedCallback = true
                 return self:wait()
             end
 
+            self.onAddedEventName = eventName
             self.onAddedCallback = callback
             return self;
         end,
@@ -635,7 +656,7 @@ return function (framework, Player)
 
             if self.onRiggedCallback and self:wait() then
                 if type(self.onRiggedCallback) == "string" then
-                    local Event = framework:event()
+                    local Event = framework:event(self.onRiggedEventName)
                     Event:dispatch(self.onRiggedCallback, self, self.Humanoid, self.HumanoidRootPart)    
                 end
 
@@ -652,7 +673,7 @@ return function (framework, Player)
                 if table.find({"function", "string"}, type(proxy.onAddedCallback)) then
                     framework:create(self.Player.UserId, self.Player.CharacterAdded, function (self, Character)
                         if type(proxy.onAddedCallback) == "string" then
-                            local Event = framework:event()
+                            local Event = framework:event(proxy.onAddedEventName)
                             return proxy:root(Player), proxy:wait(), Event:dispatch(proxy.onAddedCallback, proxy, proxy.Humanoid, proxy.HumanoidRootPart)
                         end
 
@@ -663,7 +684,7 @@ return function (framework, Player)
                 end
 
                 if type(proxy.onAddedCallback) == "string" then
-                    local Event = framework:event()
+                    local Event = framework:event(proxy.onAddedEventName)
                     return Event:dispatch(self.onAddedCallback, self, self.Humanoid, self.HumanoidRootPart)
                 end
 
@@ -759,7 +780,7 @@ return function (framework, Player)
 
     setmetatable(proxy, {
         __index = function (self, key)
-            if (table.find({'onRiggedCallback', 'onAddedCallback', 'onDied'}, key)) then
+            if (table.find({'onRiggedCallback', 'onRiggedEventName', 'onAddedEventName', 'onAddedCallback', 'onDied'}, key)) then
                 return
             end
 
@@ -1983,7 +2004,121 @@ return module
       <Properties>
         <string name="Name">server</string>
         <token name="RunContext">0</token>
-        <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService('ReplicatedStorage')
+        <string name="Source">local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+local Event = Connect:event()
+
+Event:listen('Humanoid.Ready', function (Rig)
+    print(`{Rig.Name} is ready!`)
+end)
+
+Event:listen('Humanoid.Added', function (Rig)
+    print(`{Rig.Name} was added!`)
+end)
+
+Event:listen('Humanoid.Died', function (Rig)
+    print(`{Rig.Name} died!`)
+end)
+
+Connect:create('PlayerAdded', function (self, Player)
+    local Rig = Connect:humanoid(Player)
+        :ready('Humanoid.Ready')
+        :added('Humanoid.Added')
+        :died('Humanoid.Died')
+end)</string>
+      </Properties>
+      <Item class="Script" referent="28">
+        <Properties>
+          <string name="Name">events</string>
+          <token name="RunContext">0</token>
+          <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+
+-- Create the session
+local Session = Connect:session()
+local Event = Connect:event()
+
+Event:listen("fetch", function (Player)
+    local key = Session:key(Player.UserId, "Points")
+    -- Dispatch the Event which creates the leaderboard
+    local Leaderstats, Points = Event:dispatch("createLeaderboard", key)
+    -- Fetch the player's saved data for this key
+    local DataStoreRequest = Connect:fetch(key, function (self, response)
+        Connect.tick(function (i)
+            -- Increase the points each second
+            Session:update(key, (Session:find(key) or response or 0) + 1)
+        end, function ()
+            -- Cancel running if the player has left
+            return not (Player and Player.Parent)
+        end)
+    end)
+
+    -- Wait for the DataStoreRequest to finish
+    DataStoreRequest:sync()
+
+    Points.Parent = Leaderstats
+    Leaderstats.Parent = Player
+end)
+
+Event:listen("fetch.finished", function ()
+    print("fetch.finished")
+end)
+
+Event:listen('store', function (Player)
+    local key = Session:key(Player.UserId, "Points")
+    local value = Session:find(key)
+
+    -- Save the player's points
+    local DataStoreRequest = Connect:store(key, value, function (self, response)
+        -- Remove the key from session storage, it's no longer needed
+        Session:remove(key)
+    end)
+
+    DataStoreRequest:sync()
+end)
+
+Event:listen("store.finished", function ()
+    print(`store.finished`)
+end)
+
+Event:listen("createLeaderboard", function (key)
+    -- Create the leaderboard
+    local Leaderstats = Instance.new("StringValue")
+    Leaderstats.Name = "leaderstats"
+
+    -- Create the points value for the leaderboard
+    local Points = Instance.new("IntValue")
+    Points.Name = "Points"
+
+    -- Register a Key specific onUpdate handler
+    Session:onUpdate(key, function (self, value)
+        Points.Value = value
+    end)
+
+    return Leaderstats, Points
+end)
+
+Event:listen("createLeaderboard.finished", function ()
+    print("createLeaderboard.finished")
+end)</string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerStorage" referent="29">
+    <Properties>
+      <string name="Name">ServerStorage</string>
+    </Properties>
+    <Item class="Folder" referent="30">
+      <Properties>
+        <string name="Name">Snippets</string>
+      </Properties>
+      <Item class="Script" referent="31">
+        <Properties>
+          <string name="Name">LeaderboardHumanoidEvents</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
 local Event = Connect:event()
@@ -2074,368 +2209,6 @@ Connect:create('PlayerRemoving', function (self, Player)
     end)
 end)
 ]]></string>
-      </Properties>
-      <Item class="Script" referent="28">
-        <Properties>
-          <string name="Name">datastore</string>
-          <token name="RunContext">0</token>
-          <string name="Source">-- local ReplicatedStorage = game:GetService("ReplicatedStorage")
--- local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
-
--- Connect.new("PlayerAdded", function (self, Player)
--- 	-- Do all DataStore requests at the top
--- 	-- as they do not work within Scheduled Retries
--- 	print("PlayerAdded")
-	
--- 	local leaderstats = Instance.new("IntValue")
--- 	leaderstats.Name = "leaderstats"
--- 	leaderstats.Parent = Player
-	
--- 	local DataStoreRequest = Connect:Fetch(Player.UserId, function (self, response)
--- 		local Coins = Instance.new("IntValue")
--- 		Coins.Name = "Coins"
--- 		Coins.Value = response or 0
--- 		Coins.Parent = leaderstats
--- 	end)
-	
--- 	DataStoreRequest:onError(function (self, err)
--- 		warn(err)
-		
--- 		if self.retries == 5 then
--- 			self:CancelRetry()
--- 		end
--- 	end)
-	
--- 	local GemsFeature = Connect:Feature("Gems", function (self)
--- 		local feature = self
-		
--- 		local DataStoreRequest = Connect:Fetch(Player.UserId .. "Gems", function (self, response)
--- 			local Gems = Instance.new("IntValue")
--- 			Gems.Name = "Gems"
--- 			Gems.Value = response or 0
--- 			Gems.Parent = leaderstats
-			
--- 			feature:onDisable(function ()
--- 				Connect:Store(Player.UserId .. "Gems", Gems.Value, function (self, response)
--- 					Gems:Destroy()
--- 				end)
--- 			end)
--- 		end)
--- 	end)
-	
--- 	--GemsFeature:onEnable(function (self)
--- 	--	self:run()
--- 	--end)
-	
--- 	Connect.new(Player, "CharacterAdded", function (self, Character)
--- 		print("CharacterAdded")
--- 	end)
-	
--- end)
-
--- Connect.new("PlayerRemoving", function (self, Player)
--- 	Connect:Store(Player.UserId, 10, function (self, response)
--- 		print("success")
--- 	end)
--- end)
-
-
--- print(Connect.HelperService:FormatNumber(1000000))
-
--- local nest = Connect.HelperService:Nest({
--- 	playerData = {
--- 		{
--- 			testValue = 6;
--- 			otherValue = 7;
--- 		};
-		
--- 		{
--- 			testValue = 4;
--- 			otherValue = 5;
--- 		};
--- 	}
--- })
-
--- nest:onUpdate(function (self, key, value)
--- 	print("Global update:", key, value)
--- end)
-
--- nest:onUpdate('playerData.2.testValue', function (self, value)
--- 	print("playerData.2.testValue update:", value)
--- end)
-
--- nest:Update("hello.my.name.is.web", 5)
-
--- nest["hello.there"] = 5
--- nest["playerData.2.testValue"] = 9
-
--- print(nest.Data)</string>
-        </Properties>
-      </Item>
-      <Item class="Script" referent="29">
-        <Properties>
-          <string name="Name">events</string>
-          <token name="RunContext">0</token>
-          <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
-
--- Create the session
-local Session = Connect:session()
-local Event = Connect:event()
-
-Event:listen("fetch", function (Player)
-    local key = Session:key(Player.UserId, "Points")
-    -- Dispatch the Event which creates the leaderboard
-    local Leaderstats, Points = Event:dispatch("createLeaderboard", key)
-    -- Fetch the player's saved data for this key
-    local DataStoreRequest = Connect:fetch(key, function (self, response)
-        Connect.tick(function (i)
-            -- Increase the points each second
-            Session:update(key, (Session:find(key) or response or 0) + 1)
-        end, function ()
-            -- Cancel running if the player has left
-            return not (Player and Player.Parent)
-        end)
-    end)
-
-    -- Wait for the DataStoreRequest to finish
-    DataStoreRequest:sync()
-
-    Points.Parent = Leaderstats
-    Leaderstats.Parent = Player
-end)
-
-Event:listen("fetch.finished", function ()
-    print("fetch.finished")
-end)
-
-Event:listen('store', function (Player)
-    local key = Session:key(Player.UserId, "Points")
-    local value = Session:find(key)
-
-    -- Save the player's points
-    local DataStoreRequest = Connect:store(key, value, function (self, response)
-        -- Remove the key from session storage, it's no longer needed
-        Session:remove(key)
-    end)
-
-    DataStoreRequest:sync()
-end)
-
-Event:listen("store.finished", function ()
-    print(`store.finished`)
-end)
-
-Event:listen("createLeaderboard", function (key)
-    -- Create the leaderboard
-    local Leaderstats = Instance.new("StringValue")
-    Leaderstats.Name = "leaderstats"
-
-    -- Create the points value for the leaderboard
-    local Points = Instance.new("IntValue")
-    Points.Name = "Points"
-
-    -- Register a Key specific onUpdate handler
-    Session:onUpdate(key, function (self, value)
-        Points.Value = value
-    end)
-
-    return Leaderstats, Points
-end)
-
-Event:listen("createLeaderboard.finished", function ()
-    print("createLeaderboard.finished")
-end)</string>
-        </Properties>
-      </Item>
-      <Item class="Script" referent="30">
-        <Properties>
-          <string name="Name">old</string>
-          <token name="RunContext">0</token>
-          <string name="Source">-- local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
--- local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
--- Connect:UseDataStore(4)
-
--- local Session = Connect:Session()
-
--- Session:onUpdate(function (self, key, value)
---     print(`{key}: {value}`)
--- end)
-
--- Connect.new("PlayerAdded", function (self, Player)
---     local key = Session:Key(Player.UserId)
---     print(key);
-
--- 	local leaderstats = Instance.new("IntValue")
--- 	leaderstats.Name = "leaderstats"
--- 	leaderstats.Parent = Player
-
---     local DataStoreRequest = Connect:Fetch(Player.UserId, function (self, response)
---         local Time = Instance.new("StringValue")
--- 		Time.Name = "Time"
-
--- 		Session:onUpdate(key, function (self, value)
---             local value = tonumber(value)
-
---             local f,dv
---             if (value >= 86400) then
---                 dv = math.floor(value/86400)
---                 f = dv .. " day" .. (if tonumber(dv) == 1 then "" else "s") .. " "
---             end
-
---             local m = value
---             if (f and dv) then
---                 m = value - (86400 * dv)
---             end
-
---             local t = {" min", " hour"}
---             local e = math.min(#t, math.floor(math.log(m, 60)))
---             local d = t[e] or (if m == 0 then "" else " sec")
-
---             local v = (f or "") .. (if m and m > 0 then math.floor(m / (60 ^ e)) else "")
---             Time.Value = v .. d .. (if (not tonumber(m) or tonumber(m) &lt;= 1) then "" else "s")
---         end)
-        
---         Connect.tick(1, function ()
---             -- need to cancel this when the player
---             -- has left the game
---             print(key)
---             print(Session:Get(key))
---             print(response);
-
---             local value = (Session:Get(key) or (response or 0)) + 1
-
---             if (value % 180 == 0) then
---                 -- autosave every 3 minutes
---                 Connect:Store(Player.UserId, value, function (self, response)
---                     return response
---                 end)
---             end
-
---             Session:Update(key, value)
---         end, function ()
---             -- Cancel running if the player has left
---             return not (Player and Player.Parent)
---         end)
-
---         Time.Parent = leaderstats
--- 	end)
-	
--- 	DataStoreRequest:onError(function (self, err)
--- 		warn(err)
-		
--- 		if self.retries == 5 then
--- 			self:CancelRetry()
--- 		end
--- 	end)
--- end)
-
--- Connect:once("Players.PlayerRemoving", function (self, Player)
---     local key = Session:Key(Player.UserId)
-
--- 	local value = Session:Get(key)
--- 	Session:Remove(key)
-
--- 	local DataStoreRequest = Connect:Store(Player.UserId, value, function (self, response)
---         print(response)
---         return response
---     end)
-
---     DataStoreRequest:onError(function (self, err)
---         warn(err)
-    
---         if self.retries == 5 then
---             self:CancelRetry()
---         end
---     end)
-
---     print(`Here: {DataStoreRequest.response}`);
---     DataStoreRequest:sync()
---     print(`Done: {DataStoreRequest.response}`);
--- end)
-
--- game:BindToClose(function ()
---     -- this is problematic as Session.Data is nested
---     for userId, userData in next, Session.Data do
---         Session:Remove(userId)
-
---         local DataStoreRequest = Connect:Store(userId, userData, function (self, response)
---             return response
---         end)
-
---         DataStoreRequest:onError(function (self, err)
---             warn(err)
-		
---             if self.retries == 3 then
---                 self:CancelRetry()
---             end
---         end)
-
---         DataStoreRequest:sync()
---     end
--- end)</string>
-        </Properties>
-      </Item>
-      <Item class="Script" referent="31">
-        <Properties>
-          <string name="Name">old2</string>
-          <token name="RunContext">0</token>
-          <string name="Source">-- local ReplicatedStorage = game:GetService('ReplicatedStorage')
--- local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
-
--- local Event = Connect:event()
--- local Session = Connect:session()
-
--- Event:listen('Humanoid.Ready', function (Rig)
---     print(`{Rig.Name} is ready!`)
-
---     local key = Session:key(Rig.Player.UserId, 'Points')
-
---     local DataStoreRequest = Connect:fetch(key, function (self, response)
--- 		print('Points', response)
--- 		local Leaderboard = Instance.new('StringValue')
--- 		Leaderboard.Name = 'leaderstats'
-		
--- 		local Points = Instance.new('IntValue')
--- 		Points.Name = 'Points'
--- 		Points.Parent = Leaderboard
-
---         Session:onUpdate(key, function (self, value)
---             Points.Value = value or 0
---         end)
-		
---         Session:store(key, response)
--- 		Leaderboard.Parent = Rig.Player
---     end)
-
---     DataStoreRequest:sync()
--- end)
-
--- Event:listen('Humanoid.Added', function (Rig)
---     print(`{Rig.Name} was added!`)
-
---     local key = Session:key(Rig.Player.UserId, 'Points')
---     local value = Session:get(key) or 0
-
---     Rig:use(Instance.new('IKControl'), {
---         test = true
---     })
-
---     Session:update(key, value + 1)
--- end)
-
--- Connect:create('PlayerAdded', function (self, Player)
---     Connect:humanoid(Player):ready('Humanoid.Ready')
---     Connect:humanoid(Player):added('Humanoid.Added')
--- end)
-
--- Connect:create('PlayerRemoving', function (self, Player)
---     local key = Session:key(Player.UserId, 'Points')
---     Connect:store(key, Session:get(key), function (self, response)
---         print(response)
---     end)
--- end)</string>
         </Properties>
       </Item>
     </Item>

@@ -123,7 +123,7 @@ return {
 
                     return unpack(response)
                 else
-                    warn(`{key} Event not found`)
+                    warn(`[{self.name}] {key} Event not found`)
                 end
             end,
 
