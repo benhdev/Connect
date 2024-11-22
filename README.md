@@ -254,41 +254,53 @@ Session:onUpdate(key, function (self, value)
 end)
 ```
 
-Using `Session:onUpdate` within the client will allow automatic replication of session values from the server
+Using `Session:onUpdate` within the client allows for automatic replication of session values from the server
 
-```lua
--- server.lua
-Session:onUpdate(key, function (self, value)
-    print('Session updated:', value)
-end)
+> server.lua
+>
+> ```lua
+> local Session = Connect:session()
+>
+> Session:onUpdate(key, function (self, value)
+>     print('Session updated:', value)
+> end)
+>
+> Session:update(key, value)
+> ```
 
-Session:update(key, value)
-```
-
-```lua
--- client.lua
-Session:onUpdate(key, function (self, value)
-    print('Replicated:', value)
-end)
-```
+> client.lua
+>
+> ```lua
+> local Session = Connect:session()
+>
+> Session:onUpdate(key, function (self, value)
+>     print('Replicated:', value)
+> end)
+> ```
 
 Automatic replication can be **disabled** by returning `false` in the **latest server-sided onUpdate callback** or by adding `.private` to the session key
 
-```lua
---server.lua
-Session:onUpdate(key, function (self, value)
-    return false
-end)
+> server.lua
+>
+> ```lua
+> local Session = Connect:session()
+>
+> Session:onUpdate(key, function (self, value)
+>     return false
+> end)
+>
+> Session:update(key, value)
+> ```
 
-Session:update(key, value)
-```
-
-```lua
--- client.lua
-Session:onUpdate(key, function (self, value)
-    print('Replicated:', value)
-end)
-```
+> client.lua
+>
+> ```lua
+> local Session = Connect:session()
+>
+> Session:onUpdate(key, function (self, value)
+>     print('Replicated:', value)
+> end)
+> ```
 
 ### Using Events
 
