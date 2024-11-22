@@ -20,6 +20,12 @@ function module.setPointers (self: module)
 	self.pointers.store = self.Store
     self.pointers.session = self.Session
 
+    function self.pointers:localPlayer ()
+        if self:env() == 'client' then
+            return game.Players.LocalPlayer
+        end
+    end
+
     return self.pointers
 end
 
