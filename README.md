@@ -256,7 +256,7 @@ end)
 
 Using `Session:onUpdate` within the client allows for automatic replication of session values from the server
 
-> server.lua
+> <sub>server.lua</sub>
 >
 > ```lua
 > local Session = Connect:session()
@@ -268,7 +268,7 @@ Using `Session:onUpdate` within the client allows for automatic replication of s
 > Session:update(key, value)
 > ```
 
-> client.lua
+> <sub>client.lua</sub>
 >
 > ```lua
 > local Session = Connect:session()
@@ -280,7 +280,7 @@ Using `Session:onUpdate` within the client allows for automatic replication of s
 
 Automatic replication can be **disabled** by returning `false` in the **latest server-sided onUpdate callback** or by adding `.private` to the session key
 
-> server.lua
+> <sub>server.lua</sub>
 >
 > ```lua
 > local Session = Connect:session()
@@ -292,7 +292,7 @@ Automatic replication can be **disabled** by returning `false` in the **latest s
 > Session:update(key, value)
 > ```
 
-> client.lua
+> <sub>client.lua</sub>
 >
 > ```lua
 > local Session = Connect:session()
