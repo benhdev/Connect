@@ -203,7 +203,7 @@ Session:fetch(key)
 ```
 
 ```lua
-Session::retrieve(key)
+Session:retrieve(key)
 ```
 
 Saving a value in the Session
