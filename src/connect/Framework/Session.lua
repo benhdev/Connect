@@ -84,7 +84,7 @@ return function (self, key: string?, initialData: object?)
     end
 
     function storage:increment (key, value)
-        self:update(key, (self:get(key) or 0) + 1)
+        self:update(key, (self:get(key) or 0) + (value or 1))
     end
 
     function storage:Remove (key): ()

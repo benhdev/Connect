@@ -26,9 +26,18 @@ function module.GetSignal (self, key, instance)
 			nest = table.pack(prefix, nest[1])
 		end
 
-		local service = typeof(nest[1]) == "Instance" and nest[1] or if nest[1]:lower() == "game" then game else game:GetService(nest[1])
-		local signal = nest[2]
+		local service = typeof(nest[1]) == "Instance" and nest[1] or if nest[1]:lower() == "game" then game else nest[1]
 
+		if typeof(service) == "string" then
+			local found, result = pcall(game.FindService, game, service)
+			service = if found then result else nil
+		end
+
+		if not service then
+			return nil
+		end
+
+		local signal = nest[2]
 		return service[signal]
 	end
 end

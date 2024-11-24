@@ -1,8 +1,8 @@
 return function (self: module, ...): (any, RBXScriptSignal, (module, ...any?) -> any?)
-	local key, signal, callback: (...any?) -> any?, onError: (...any?) -> any? = ...
+	local key, signal, callback: (...any?) -> any?, listener: string = ...
 
-	if typeof(signal) == "function" and self:GetSignal(key) then
-		onError = callback
+	if table.find({"function", "table"}, typeof(signal)) and self:GetSignal(key) then
+		listener = callback
 		callback = signal
 		signal = key
 		key = "Global"
@@ -11,14 +11,14 @@ return function (self: module, ...): (any, RBXScriptSignal, (module, ...any?) ->
 	signal = self:GetSignal(signal, key)
 
 	if self:DebugEnabled() == "internal" then
-		print(key, signal, callback, onError)
+		print(key, signal, callback, listener)
 	end
 
-	self:Validate(key, signal, callback, onError)
+	self:Validate(key, signal, callback, listener)
 
 	if not self.connections[key] then
 		self.connections[key] = setmetatable({}, {__mode = "k"})
 	end
 
-	return key, signal, callback :: (any) -> any?, onError :: (any) -> any?
+	return key, signal, callback :: (any) -> any?, listener :: string
 end

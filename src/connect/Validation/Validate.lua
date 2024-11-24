@@ -8,7 +8,7 @@ type object = table<string>
 
 local module: module = {} :: module
 
-function module.Validate (self: module, key, signal, callback, onError)
+function module.Validate (self: module, key, signal, callback, listener)
 	if not key then
 		error("key invalid")
 	end
@@ -17,12 +17,12 @@ function module.Validate (self: module, key, signal, callback, onError)
 		error("signal invalid")
 	end
 
-	if not callback or typeof(callback) ~= "function" then
+	if not callback or not table.find({"function", "table"}, type(callback)) then
 		error("callback invalid")
 	end
 
-	if onError and typeof(onError) ~= "function" then
-		error("Error Handler invalid")
+	if listener and typeof(listener) ~= "string" then
+		error("Listener key invalid")
 	end
 end
 

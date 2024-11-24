@@ -1,9 +1,7 @@
-return {
-    camera = function (self)
-        return {
-            tween = function (self, Rig, options)
-                return {}
-            end,
-        }
-    end
-}
+return function (self)
+    return {
+        tween = function (self, Rig, options)
+            return {}
+        end,
+    }
+end

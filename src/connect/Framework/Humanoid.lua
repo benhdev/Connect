@@ -1,12 +1,8 @@
--- not tested this yet!
-
 return function (framework, Player)
-    if not Player then
-        error("No Player found for Humanoid")
-    end
-
+    local Player = Player or game.Players.LocalPlayer or error("No Player found for Humanoid")
+    
     local proxy = {
-        Player = Player or game.Players.LocalPlayer or nil,
+        Player = Player,
 
         Character = Player.Character or Player.CharacterAdded:Wait(),
 
@@ -46,50 +42,51 @@ return function (framework, Player)
         end,
 
         ready = function (self, eventName, callback)
-            if type(eventName) ~= "string" and type(eventName) ~= "function" and eventName then
+            if not table.find({"function", "string", "table"}, type(eventName)) and eventName then
                 return warn('Incorrect DataType passed ConnectHumanoid:added')
             end
 
-            if not callback then
+            if not callback and type(eventName) ~= "table" then
                 callback = eventName
                 eventName = nil
             end
 
-            if not callback then
+            if not eventName and not callback then
                 return self:wait()
             end
         
             self.onRiggedEventName = eventName
             self.onRiggedCallback = callback
+
             return self;
         end,
 
         added = function (self, eventName, callback)
-
-            if type(eventName) ~= "string" and type(eventName) ~= "function" and eventName then
+            if not table.find({"function", "string", "table"}, type(eventName)) and eventName then
                 return warn('Incorrect DataType passed ConnectHumanoid:added')
             end
 
-            if not callback then
+            if not callback and type(eventName) ~= "table" then
                 callback = eventName
                 eventName = nil
             end
 
-            if not callback then
+            if not eventName and not callback then
                 self.onAddedCallback = true
                 return self:wait()
             end
 
             self.onAddedEventName = eventName
             self.onAddedCallback = callback
+
             return self;
         end,
 
         finished = function (self)
             local proxy = self
 
-            if self.onRiggedCallback and self:wait() then
-                if type(self.onRiggedCallback) == "string" then
+            if (self.onRiggedCallback or self.onRiggedEventName) and self:wait() then
+                if table.find({"string", "nil"}, type(self.onRiggedCallback)) then
                     local Event = framework:event(self.onRiggedEventName)
                     Event:dispatch(self.onRiggedCallback, self, self.Humanoid, self.HumanoidRootPart)    
                 end
@@ -99,14 +96,14 @@ return function (framework, Player)
                 end
             end
 
-            if self.onAddedCallback then
+            if self.onAddedCallback or self.onAddedEventName then
                 if not self.onRiggedCallback then
                     self:wait()
                 end
 
-                if table.find({"function", "string"}, type(proxy.onAddedCallback)) then
+                if table.find({"function", "string", "nil"}, type(proxy.onAddedCallback)) then
                     framework:create(self.Player.UserId, self.Player.CharacterAdded, function (self, Character)
-                        if type(proxy.onAddedCallback) == "string" then
+                        if table.find({"string", "nil"}, type(proxy.onAddedCallback)) then
                             local Event = framework:event(proxy.onAddedEventName)
                             return proxy:root(Player), proxy:wait(), Event:dispatch(proxy.onAddedCallback, proxy, proxy.Humanoid, proxy.HumanoidRootPart)
                         end
@@ -117,7 +114,7 @@ return function (framework, Player)
                     end)
                 end
 
-                if type(proxy.onAddedCallback) == "string" then
+                if table.find({"string", "nil"}, type(proxy.onAddedCallback)) then
                     local Event = framework:event(proxy.onAddedEventName)
                     return Event:dispatch(self.onAddedCallback, self, self.Humanoid, self.HumanoidRootPart)
                 end
@@ -155,16 +152,16 @@ return function (framework, Player)
         died = function (self, eventName, callback)
             self:wait()
 
-            if type(eventName) ~= "string" and type(eventName) ~= "function" and eventName then
+            if not table.find({"function", "string", "table"}, type(eventName)) and eventName then
                 return warn('Incorrect DataType passed ConnectHumanoid:died')
             end
 
-            if not callback then
+            if not callback and type(eventName) ~= "table" then
                 callback = eventName
                 eventName = nil
             end
 
-            if not callback then
+            if not eventName and not callback then
                 return self, self.Humanoid.Died:Wait()
             end
 
@@ -179,9 +176,9 @@ return function (framework, Player)
                 end
             end
 
-            self.onDied = framework:create(self.Humanoid.Died, function (connection)
-                if type(callback) == "string" then
-                    local Event = framework:event(if type(eventName) == "string" then eventName else nil)
+            self.onDied = framework:once(self.Humanoid.Died, function (connection)
+                if table.find({"string", "nil"}, type(callback)) then
+                    local Event = framework:event(eventName)
                     return Event:dispatch(callback, self)
                 end
                 

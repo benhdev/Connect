@@ -62,8 +62,9 @@ function module.InRetryResponse (self)
 	})
 end
 
-function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, onError): any?
+function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal, method, callback, listener): any?
 	local module = self
+	local onError = nil
 
 	if self:DebugEnabled() == "internal" then
 		print('----------')
@@ -180,8 +181,11 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 			proxy.ContextArguments = {...}
 			proxy.CurrentCycleNo += 1
 
+			local event = if type(callback) == "table" then module:event(callback) else nil
+			local args = if event then table.pack(listener, proxy, unpack(table.pack(...))) else table.pack(...)
+
 			local success, result = xpcall(
-				callback,
+				if event then event.dispatch else callback,
 				function (e)
 					table.insert(proxy.Errors, e)
 					local endTime = os.clock()
@@ -236,8 +240,8 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 
 					return e
 				end,
-				proxy,
-				...
+				if event then event else proxy,
+				unpack(args)
 			)
 
 			if success then

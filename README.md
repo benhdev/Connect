@@ -17,6 +17,25 @@ https://www.roblox.com/library/13518158092/ConnectFramework
 - Introduction of [Sessions](#handling-sessions), [Events](#using-events), [Prompts](#using-prompts) and [Humanoids](#using-humanoids)
 - Introduction of initial [Data Storage & Retrieval](#data-storage--retrieval) functionality
 
+#### Directory
+
+- [Usage](#usage)
+
+  - [Connections](#handling-connections)
+  - [Sessions](#handling-sessions)
+  - [Events](#using-events)
+  - [Humanoids](#using-humanoids)
+  - [Clients](#using-clients)
+  - [Promps](#using-prompts)
+  - [Data Storage](#data-storage--retrieval)
+    - [Examples](#examples)
+  - [Error Handling](#error-handling)
+  - [Gameplay Loops](#core-gameplay-loops)
+  - [Threads](#threads)
+  - [Debugging](#debugging)
+
+- [Guidelines](#guidelines)
+
 ## Getting Started
 
 To build the place from scratch, use:
@@ -306,8 +325,8 @@ Automatic replication can be **disabled** by returning `false` in the **latest s
 
 Connect provides various event utilities which can be used to handle specific functionality in one place
 
-> [!NOTE]
-> More functionality for events will be coming soon!
+> [!NOTE]  
+> Check out the [guidelines](#guidelines) for more information on Events
 
 Accessing the event object
 
@@ -359,6 +378,7 @@ Events may also be used for server to client replication and vice versa
 >
 > Connect:create('PlayerAdded', function (self, Player)
 >     Event:broadcast(Player)
+>     Event:replicate(Player)
 > end)
 > ```
 
@@ -462,30 +482,130 @@ end)
 > [!TIP]
 > The Humanoid utility callback methods (`ready`, `added` and `died`) all support the use of Events by passing the _(optional)_ event name and/or the event key as the argument(s)
 >
+> This example demonstrates the various ways an event can be registered as a callback
+>
 > ```lua
 > local ReplicatedStorage = game:GetService('ReplicatedStorage')
 > local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 >
 > local Event = Connect:event()
-> local HealthEvent = Connect:event('Health')
->
 > Event:listen('Humanoid.Ready', function (Rig)
 >     print(`{Rig.Name} is ready!`)
 > end)
 >
-> Event:listen('Humanoid.Added', function (Rig)
+> local CharacterEvent = Connect:event('Character')
+> CharacterEvent:listen('Humanoid.Added', function (Rig)
 >     print(`{Rig.Name} was added!`)
 > end)
 >
-> HealthEvent:listen('Humanoid.Died', function (Rig)
+> local HealthEvent = Connect:event('Health')
+> HealthEvent:listen('handle', function (Rig)
 >     print(`{Rig.Name} died!`)
 > end)
 >
 > Connect:create('PlayerAdded', function (self, Player)
 >     local Rig = Connect:humanoid(Player)
 >         :ready('Humanoid.Ready')
->         :added('Humanoid.Added')
->         :died('Health', 'Humanoid.Died')
+>         :added('Character', 'Humanoid.Added')
+>         :died(HealthEvent)
+> end)
+> ```
+
+### Using Clients
+
+Connect provides a **Client** utility for LocalPlayer interaction and has various built-in event implementations
+
+> [!WARNING]
+> This utility is only available from within a client-sided environment
+
+Accessing the Client
+
+```lua
+local Client = Connect:client()
+```
+
+Clients also have access to the Humanoid utility
+
+```lua
+local Client = Connect:client()
+local Rig = Client:humanoid()
+
+if Rig:ready() then
+    print(Client.Name, 'ready')
+end
+```
+
+Detecting keyboard input through the client
+
+```lua
+local Client = Connect:client()
+
+Client:onKeyPressed(Enum.KeyCode.Q, function (inputObject, gameProcessed)
+    if gameProcessed then
+        return
+    end
+
+    print('Key pressed!')
+end)
+```
+
+Detecting mouse input through the client
+
+```lua
+local Client = Connect:client()
+
+Client:onClick(function (inputObject, gameProcessed)
+    if gameProcessed then
+        return
+    end
+
+    print('Click')
+end)
+
+Client:onRightClick(function (inputObject, gameProcessed)
+    if gameProcessed then
+        return
+    end
+
+    print('Right click')
+end)
+```
+
+These callback methods also support the use of Events
+
+> [!NOTE]
+> Events need to be set up on the server first - this can be done using the same line to define `ClickEvent` in the below snippet, but within a server-sided script
+
+> <sub>client.lua</sub>
+>
+> ```lua
+> local Client = Connect:client()
+> local ClickEvent = Connect:event('Click')
+>
+> ClickEvent:listen('handle', function (inputObject, gameProcessed)
+>     if gameProcessed then
+>         return
+>     end
+>
+>     -- tell the server about the click
+>     ClickEvent:request()
+> end)
+>
+> ClickEvent:replicated(function (self, message)
+>     print(`{self.Name} was replicated: {message}`)
+> end)
+>
+> Client:onClick(ClickEvent)
+> ```
+
+> <sub>server.lua</sub>
+>
+> ```lua
+> local ClickEvent = Connect:event('Click')
+>
+> ClickEvent:requested(function (self, Player, ...)
+>     print(`ClickEvent Requested: {Player.Name}`)
+>     ClickEvent:replicate(Player, 'success')
 > end)
 > ```
 
@@ -970,3 +1090,5 @@ Show how many server or client connections you have every 5 seconds depending on
 ```lua
 Connect:Counter()
 ```
+
+## Guidelines
