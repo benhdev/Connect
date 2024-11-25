@@ -11,7 +11,7 @@ local globalEvents = {}
 
 return function (self, key)
     local framework = self
-    key = framework:GetSignal(key) or tostring(key or "Global")
+    local key = framework:GetSignal(key) or tostring(key or "Global")
 
     local RemoteEvent
 

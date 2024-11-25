@@ -27,25 +27,29 @@ return function (framework, Player)
                 end
             end
 
-            if table.find({"function", "string", "nil"}, type(self.onClickCallback)) and inputObject.UserInputType == Enum.UserInputType.MouseButton1 then
-                if type(self.onClickCallback) == "function" then
-                    self.onClickCallback(inputObject, gameProcessed)
-                end
+            if self.onClickCallback or self.onClickEventName then
+                if table.find({"function", "string", "nil"}, type(self.onClickCallback)) and inputObject.UserInputType == Enum.UserInputType.MouseButton1 then
+                    if type(self.onClickCallback) == "function" then
+                        self.onClickCallback(inputObject, gameProcessed)
+                    end
 
-                if table.find({"string", "nil"}, type(self.onClickCallback)) then
-                    local Event = framework:event(self.onClickEventName)
-                    Event:dispatch(self.onClickCallback, inputObject, gameProcessed)
+                    if table.find({"string", "nil"}, type(self.onClickCallback)) or table.find({"string", "nil"}, type(self.onClickEventName)) then
+                        local Event = framework:event(self.onClickEventName)
+                        Event:dispatch(self.onClickCallback, inputObject, gameProcessed)
+                    end
                 end
             end
 
-            if self.onRightClickCallback and table.find({"function", "string"}, type(self.onRightClickCallback)) and inputObject.UserInputType == Enum.UserInputType.MouseButton2 then
-                if type(self.onRightClickCallback) == "function" then
-                    self.onRightClickCallback(inputObject, gameProcessed)
-                end
+            if self.onRightClickCallback or self.onRightClickEventName then
+                if table.find({"function", "string", "nil"}, type(self.onRightClickCallback)) and inputObject.UserInputType == Enum.UserInputType.MouseButton2 then
+                    if type(self.onRightClickCallback) == "function" then
+                        self.onRightClickCallback(inputObject, gameProcessed)
+                    end
 
-                if type(self.onRightClickCallback) == "string" then
-                    local Event = framework:event(self.onRightClickEventName)
-                    Event:dispatch(self.onRightClickCallback, inputObject, gameProcessed)
+                    if table.find({"string", "nil"}, type(self.onRightClickCallback)) or table.find({"string", "nil"}, type(self.onRightClickEventName)) then
+                        local Event = framework:event(self.onRightClickEventName)
+                        Event:dispatch(self.onRightClickCallback, inputObject, gameProcessed)
+                    end
                 end
             end
         end)

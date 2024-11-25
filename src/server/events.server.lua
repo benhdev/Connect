@@ -9,6 +9,13 @@ local Event = Connect:event('Player')
 local KeyboardEvent = Connect:event('KeyboardEvent')
 local MouseEvent = Connect:event('MouseEvent')
 
+local ClickEvent = Connect:event('Click')
+
+ClickEvent:requested(function (self, Player, ...)
+    print(`ClickEvent Requested: {Player.Name}`)
+    ClickEvent:replicate(Player, 'success')
+end)
+
 Event:listen('handle', function (self, Player)
     local key = Session:key(Player.UserId, 'Points')
     -- Dispatch the Event which creates the leaderboard
