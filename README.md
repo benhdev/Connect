@@ -516,7 +516,7 @@ end)
 Connect provides a **Client** utility for LocalPlayer interaction and has various built-in event implementations
 
 > [!WARNING]
-> This utility is only available from within a client-sided environment
+> This utility is only available from within client-sided environments
 
 Accessing the Client
 
