@@ -592,7 +592,7 @@ These callback methods also support the use of Events
 > end)
 >
 > ClickEvent:replicated(function (self, message)
->     print(`{self.Name} was replicated: {message}`)
+>     print(`Click replicated: {message}`)
 > end)
 >
 > Client:onClick(ClickEvent)
