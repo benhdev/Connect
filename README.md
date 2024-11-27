@@ -574,7 +574,7 @@ end)
 These callback methods also support the use of Events
 
 > [!NOTE]
-> Events need to be set up on the server first - this can be done using the same line to define `ClickEvent` in the below snippet, but within a server-sided script
+> Events need to be set up on the server first - this can be done by using the same line to define `ClickEvent` as in the below snippet, but within a server-sided script
 
 > <sub>client.lua</sub>
 >

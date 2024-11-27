@@ -5,7 +5,7 @@ return function (framework, Player)
         error("Only use Connect:client from within the client!")
     end
 
-    local Player = Player or game.Players.LocalPlayer or error('LocalPlayer not found')
+    local Player = Player or framework:localPlayer() or error('LocalPlayer not found')
 
     local proxy = {
         Player = Player,
