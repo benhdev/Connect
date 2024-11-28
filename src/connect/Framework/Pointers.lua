@@ -15,9 +15,9 @@ function module.setPointers (self: module)
     self.pointers.create = self.AddConnection;
     self.pointers.once = self.Once;
     self.pointers.parallel = self.Parallel;
-	self.pointers.createCoreLoop = self.CreateCoreLoop;
-	self.pointers.fetch = self.Fetch
-	self.pointers.store = self.Store
+    self.pointers.createCoreLoop = self.CreateCoreLoop;
+    self.pointers.fetch = self.Fetch
+    self.pointers.store = self.Store
     self.pointers.session = self.Session
 
     function self.pointers:localPlayer ()

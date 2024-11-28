@@ -9,47 +9,47 @@ type object = table<string>
 local module: module = {} :: module
 
 function module.GetSignal (self, key, instance)
-	if typeof(key) == "RBXScriptSignal" then
-		return key
-	end
+    if typeof(key) == "RBXScriptSignal" then
+        return key
+    end
 
-	if typeof(key) == "string" then
-		local nest = key:split(".")
-		if #nest > 2 then
-			error("String signals should only have a depth of 2 items e.g: Players.PlayerAdded")
-		end
-		--typeof(instance :: {}) == "Instance"
-		local shorthands = self:SignalShorthands()
-		local prefix = shorthands[nest[1]] or (if typeof(instance :: {}) == "Instance" then instance else nil)
+    if typeof(key) == "string" then
+        local nest = key:split(".")
+        if #nest > 2 then
+            error("String signals should only have a depth of 2 items e.g: Players.PlayerAdded")
+        end
+        --typeof(instance :: {}) == "Instance"
+        local shorthands = self:SignalShorthands()
+        local prefix = shorthands[nest[1]] or (if typeof(instance :: {}) == "Instance" then instance else nil)
 
-		if #nest == 1 and prefix then
-			nest = table.pack(prefix, nest[1])
-		end
+        if #nest == 1 and prefix then
+            nest = table.pack(prefix, nest[1])
+        end
 
-		local service = typeof(nest[1]) == "Instance" and nest[1] or if nest[1]:lower() == "game" then game else nest[1]
+        local service = typeof(nest[1]) == "Instance" and nest[1] or if nest[1]:lower() == "game" then game else nest[1]
 
-		if typeof(service) == "string" then
-			local found, result = pcall(game.FindService, game, service)
-			service = if found then result else nil
-		end
+        if typeof(service) == "string" then
+            local found, result = pcall(game.FindService, game, service)
+            service = if found then result else nil
+        end
 
-		if not service then
-			return nil
-		end
+        if not service then
+            return nil
+        end
 
-		local signal = nest[2]
-		return service[signal]
-	end
+        local signal = nest[2]
+        return service[signal]
+    end
 end
 
 function module.SignalShorthands (self)
-	return {
-		PlayerAdded = "Players";
-		PlayerRemoving = "Players";
-		Stepped = "RunService";
-		RenderStepped = "RunService";
-		Heartbeat = "RunService";
-	}
+    return {
+        PlayerAdded = "Players";
+        PlayerRemoving = "Players";
+        Stepped = "RunService";
+        RenderStepped = "RunService";
+        Heartbeat = "RunService";
+    }
 end
 
 return module
