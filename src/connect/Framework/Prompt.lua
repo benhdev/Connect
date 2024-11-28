@@ -1,3 +1,4 @@
+--!strict
 return function (Connect, instance)
     local prompt = {
         Instance = instance,

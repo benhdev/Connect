@@ -1,3 +1,4 @@
+--!strict
 return function (framework, Player)
     local Player = Player or game.Players.LocalPlayer or error("No Player found for Humanoid")
     

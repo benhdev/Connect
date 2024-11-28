@@ -1,3 +1,4 @@
+--!strict
 return function (self: module): ()
     while task.wait(30) do
         for key, connectionList in next, self.connections do

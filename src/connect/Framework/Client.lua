@@ -1,3 +1,4 @@
+--!strict
 local UserInputService = game:GetService('UserInputService')
 
 return function (framework, Player)

@@ -1,3 +1,4 @@
+--!strict
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 

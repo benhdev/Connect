@@ -1,3 +1,4 @@
+--!strict
 return function (self: module, ...): (any, RBXScriptSignal, (module, ...any?) -> any?)
     local key, signal, callback: (...any?) -> any?, listener: string = ...
 

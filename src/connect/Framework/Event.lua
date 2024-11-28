@@ -1,4 +1,5 @@
 --!strict
+
 type table<T> = { [T] : any }
 
 type mt = { [string]: (...any?) -> ...any? } 

@@ -1,3 +1,4 @@
+--!strict
 return function (self: module, seconds: number, key: string, callback: () -> ()): thread
     if self.threads[key] then
         -- automatically cancel any existing thread

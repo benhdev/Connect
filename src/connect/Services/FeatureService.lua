@@ -1,3 +1,4 @@
+--!strict
 -- --!strict
 -- type table<T> = { [T] : any }
 
