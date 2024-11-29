@@ -5,8 +5,8 @@ local UserInputService = game:GetService('UserInputService')
 type MouseGrabOptions = {
     ignoreClient: boolean?,
     ignoreGui: boolean?,
-    allowHumanoids: {} | boolean,
-    allowParts: {} | boolean
+    allowHumanoids: {}?,
+    allowParts: {}?,
 }
 
 return function (framework, Player)
@@ -142,8 +142,12 @@ return function (framework, Player)
         end
 
         function mouse:grab (options: MouseGrabOptions?)
-            local options: MouseGrabOptions = if typeof(options) == "table" then options else ({} :: MouseGrabOptions)
-            local ignoreClient, ignoreGui, allowHumanoids, allowParts = if options.ignoreClient == false then false else true, if options.ignoreGui == false then false else true, options.allowHumanoids, options.allowParts
+            local options: MouseGrabOptions = (typeof(options) == "table" and options) or ({} :: MouseGrabOptions)
+            local ignoreClient, ignoreGui, allowHumanoids, allowParts =
+                if options.ignoreClient == false then false else true,
+                if options.ignoreGui == false then false else true,
+                options.allowHumanoids,
+                options.allowParts
  
             local RaycastResult = self:raycast(nil, ignoreGui)
             if not RaycastResult then
