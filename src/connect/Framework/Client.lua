@@ -2,6 +2,13 @@
 local Players = game:GetService('Players')
 local UserInputService = game:GetService('UserInputService')
 
+type MouseGrabOptions = {
+    ignoreClient: boolean?,
+    ignoreGui: boolean?,
+    allowHumanoids: {} | boolean,
+    allowParts: {} | boolean
+}
+
 return function (framework, Player)
     if framework:env() ~= "client" then
         error("Only use Connect:client from within the client!")
@@ -134,8 +141,8 @@ return function (framework, Player)
             return if allowParts and RaycastResult.Instance:IsA('BasePart') then RaycastResult.Instance else nil
         end
 
-        function mouse:grab (options: {ignoreClient: boolean, ignoreGui: boolean, allowHumanoids: boolean, allowParts: {}}?)
-            local options: {ignoreClient: boolean?, ignoreGui: boolean?, allowHumanoids: boolean|{}?, allowParts: boolean|{}?} = if typeof(options) == "table" then options else {}
+        function mouse:grab (options: MouseGrabOptions?)
+            local options: MouseGrabOptions = if typeof(options) == "table" then options else ({} :: MouseGrabOptions)
             local ignoreClient, ignoreGui, allowHumanoids, allowParts = if options.ignoreClient == false then false else true, if options.ignoreGui == false then false else true, options.allowHumanoids, options.allowParts
  
             local RaycastResult = self:raycast(nil, ignoreGui)
