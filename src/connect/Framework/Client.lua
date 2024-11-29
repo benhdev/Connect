@@ -15,8 +15,8 @@ return function (framework, Player)
 
     function proxy:createInternalInputConnection ()
         return framework:create(self.UserId, UserInputService.InputBegan, function (connection, inputObject: InputObject, gameProcessed: boolean)
-            if self.onKeyDownCallback and self.onKeyDownCallback[inputObject.keyCode] then
-                local signal = self.onKeyDownCallback[inputObject.keyCode]
+            if self.onKeyDownCallback and self.onKeyDownCallback[inputObject.KeyCode] then
+                local signal = self.onKeyDownCallback[inputObject.KeyCode]
                 local callback = signal.Callback
 
                 if type(callback) == "function" then
@@ -64,7 +64,7 @@ return function (framework, Player)
         return unpack(parts)
     end
 
-    function proxy:mouse ()
+    function proxy:mouse (): {}?
         if not UserInputService.MouseEnabled then
             return nil
         end
@@ -84,8 +84,8 @@ return function (framework, Player)
             return UserInputService.MouseIconEnabled
         end
 
-        function mouse:setMouseBehavior (mouseBehavior: MouseBehavior)
-            UserInputService.MouseBehavior = MouseBehavior
+        function mouse:setMouseBehavior (mouseBehavior: Enum)
+            UserInputService.MouseBehavior = mouseBehavior
         end
 
         function mouse:delta ()
@@ -119,10 +119,10 @@ return function (framework, Player)
                 return
             end
 
-            return workspace:Raycast(target.Origin, target.Direction * distance)
+            return workspace:Raycast(target.Origin, target.Direction :: number * distance :: number)
         end
 
-        function mouse:defaultGrabValue (allowParts, RaycastResult)
+        function mouse:defaultGrabValue (allowParts, RaycastResult: RaycastResult): Instance?
             if typeof(allowParts) == "table" then
                 if table.find(allowParts, RaycastResult.Instance) then
                     return RaycastResult.Instance
@@ -134,8 +134,8 @@ return function (framework, Player)
             return if allowParts and RaycastResult.Instance:IsA('BasePart') then RaycastResult.Instance else nil
         end
 
-        function mouse:grab (options)
-            local options = if typeof(options) == "table" then options else {}
+        function mouse:grab (options: {ignoreClient: boolean, ignoreGui: boolean, allowHumanoids: boolean, allowParts: {}}?)
+            local options: {ignoreClient: boolean?, ignoreGui: boolean?, allowHumanoids: boolean|{}?, allowParts: boolean|{}?} = if typeof(options) == "table" then options else {}
             local ignoreClient, ignoreGui, allowHumanoids, allowParts = if options.ignoreClient == false then false else true, if options.ignoreGui == false then false else true, options.allowHumanoids, options.allowParts
  
             local RaycastResult = self:raycast(nil, ignoreGui)
