@@ -122,9 +122,21 @@ return function (framework, Player)
             return workspace:Raycast(target.Origin, target.Direction * distance)
         end
 
+        function mouse:defaultGrabValue (allowParts, RaycastResult)
+            if typeof(allowParts) == "table" then
+                if table.find(allowParts, RaycastResult.Instance) then
+                    return RaycastResult.Instance
+                end
+
+                return nil
+            end
+
+            return if allowParts and RaycastResult.Instance:IsA('BasePart') then RaycastResult.Instance else nil
+        end
+
         function mouse:grab (options)
             local options = if typeof(options) == "table" then options else {}
-            local ignoreClient, ignoreGui = if options.ignoreClient == false then false else true, if options.ignoreGui == false then false else true
+            local ignoreClient, ignoreGui, allowHumanoids, allowParts = if options.ignoreClient == false then false else true, if options.ignoreGui == false then false else true, options.allowHumanoids, options.allowParts
  
             local RaycastResult = self:raycast(nil, ignoreGui)
             if not RaycastResult then
@@ -133,15 +145,31 @@ return function (framework, Player)
 
             local TargetCharacter = RaycastResult.Instance:FindFirstAncestorOfClass('Model')
             if not TargetCharacter then
-                return
+                return self:defaultGrabValue(allowParts, RaycastResult)
             end
 
             local Player = Players:GetPlayerFromCharacter(TargetCharacter)
-            if not Player or (ignoreClient and Player == client.Player) then
-                return
+            if (not allowHumanoids and not Player) or (ignoreClient and Player == client.Player) then
+                return self:defaultGrabValue(allowParts, RaycastResult)
             end
             
-            return Player, TargetCharacter
+            if allowHumanoids then
+                if not TargetCharacter:FindFirstChild('Humanoid') then
+                    return self:defaultGrabValue(allowParts, RaycastResult)
+                end
+
+                if typeof(allowHumanoids) == "table" then
+                    if table.find(allowHumanoids, TargetCharacter) then
+                        return TargetCharacter
+                    end
+
+                    if not Player then
+                        TargetCharacter = nil
+                    end
+                end
+            end
+
+            return if Player then unpack({Player, TargetCharacter}) else TargetCharacter
         end
 
         function mouse:onClick (...)

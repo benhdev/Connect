@@ -13,7 +13,7 @@ local MouseEvent = Connect:event('MouseEvent')
 local ClickEvent = Connect:event('Click')
 
 ClickEvent:requested(function (self, Player, ...)
-    print(`ClickEvent Requested: {Player.Name}`)
+    -- print(`ClickEvent Requested: {Player.Name}`)
     ClickEvent:replicate(Player, 'success')
 end)
 
