@@ -102,12 +102,16 @@ return function (framework, Player)
 
         function mouse:ray ()
             local location = self:location()
-            local target = workspace:ViewportPointToRay(location.x, location.y)
-            return workspace:Raycast(target.Origin, target.Direction * 1000)
+            return workspace:ViewportPointToRay(location.x, location.y)
+        end
+
+        function mouse:raycast ()
+            local target = self:ray()
+            workspace:Raycast(target.Origin, target.Direction * 1000)
         end
 
         function mouse:grab ()
-            local RaycastResult = self:ray()
+            local RaycastResult = self:raycast()
             if not RaycastResult then return end
 
             local TargetCharacter = RaycastResult.Instance:FindFirstAncestorOfClass('Model')
