@@ -1,4 +1,5 @@
 --!strict
+local Players = game:GetService('Players')
 local UserInputService = game:GetService('UserInputService')
 
 return function (framework, Player)
@@ -61,6 +62,72 @@ return function (framework, Player)
         self.Rig = parts[1]
 
         return unpack(parts)
+    end
+
+    function proxy:mouse ()
+        if not UserInputService.MouseEnabled then
+            return nil
+        end
+
+        local mouse = {}
+        local client = self
+
+        function mouse:icon ()
+            if self:iconEnabled() then
+                return UserInputService.MouseIcon
+            end
+            
+            return nil
+        end
+
+        function mouse:iconEnabled ()
+            return UserInputService.MouseIconEnabled
+        end
+
+        function mouse:setMouseBehavior (mouseBehavior: MouseBehavior)
+            UserInputService.MouseBehavior = MouseBehavior
+        end
+
+        function mouse:delta ()
+            return UserInputService:GetMouseDelta()
+        end
+
+        function mouse:location ()
+            return UserInputService:GetMouseLocation()
+        end
+
+        function mouse:buttonsPressed ()
+            return UserInputService:GetMouseButtonsPressed()
+        end
+
+        function mouse:ray ()
+            local location = self:location()
+            local target = workspace:ViewportPointToRay(location.x, location.y)
+            return workspace:Raycast(target.Origin, target.Direction * 1000)
+        end
+
+        function mouse:grab ()
+            local RaycastResult = self:ray()
+            if not RaycastResult then return end
+
+            local TargetCharacter = RaycastResult.Instance:FindFirstAncestorOfClass('Model')
+            if not TargetCharacter then return end
+
+            local Player = Players:GetPlayerFromCharacter(TargetCharacter)
+            if not Player then return end
+            
+            return Player, TargetCharacter
+        end
+
+        function mouse:onClick (...)
+            return client:onClick(...)
+        end
+
+        function mouse:onRightClick (...)
+            return client:onRightClick(...)
+        end
+
+        return mouse
     end
 
     function proxy:onKeyPressed (keyCode, eventName, callback)
