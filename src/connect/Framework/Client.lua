@@ -79,11 +79,16 @@ return function (framework, Player)
         local mouse = {}
         local client = self
 
-        function mouse:icon ()
-            if self:iconEnabled() then
+        function mouse:icon (value)
+            if self:iconEnabled() and not value then
                 return UserInputService.MouseIcon
             end
             
+            if value then
+                UserInputService.MouseIcon = value
+                return UserInputService.MouseIcon
+            end
+
             return nil
         end
 
@@ -113,7 +118,7 @@ return function (framework, Player)
             if ignoreGui ~= false then
                 ignoreGui = true
             end
-            
+
             if ignoreGui and client.Player.PlayerGui and #client.Player.PlayerGui:GetGuiObjectsAtPosition(location.X, location.Y) > 0 then
                 return
             end
