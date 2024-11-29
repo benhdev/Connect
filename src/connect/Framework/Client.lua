@@ -152,6 +152,11 @@ return function (framework, Player)
             return client:onRightClick(...)
         end
 
+        function mouse:preventor ()
+            -- @todo observer functionality on mouse:location() to analyze
+            -- suspicious activity
+        end
+
         return mouse
     end
 
