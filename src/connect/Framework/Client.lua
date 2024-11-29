@@ -100,25 +100,46 @@ return function (framework, Player)
             return UserInputService:GetMouseButtonsPressed()
         end
 
-        function mouse:ray ()
+        function mouse:ray (ignoreGui)
             local location = self:location()
-            return workspace:ViewportPointToRay(location.x, location.y)
+            if ignoreGui and client.Player.PlayerGui and #client.Player.PlayerGui:GetGuiObjectsAtPosition(location.X, location.Y) > 0 then
+                return
+            end
+
+            return workspace.CurrentCamera:ViewportPointToRay(location.X, location.Y)
         end
 
-        function mouse:raycast ()
-            local target = self:ray()
-            workspace:Raycast(target.Origin, target.Direction * 1000)
+        function mouse:raycast (distance, ignoreGui)
+            if not distance then
+                distance = 1000
+            end
+
+            local target = self:ray(ignoreGui)
+            if not target then
+                return
+            end
+
+            return workspace:Raycast(target.Origin, target.Direction * distance)
         end
 
-        function mouse:grab ()
-            local RaycastResult = self:raycast()
-            if not RaycastResult then return end
+        function mouse:grab (options)
+            local options = if typeof(options) == "table" then options else {}
+            local ignoreClient, ignoreGui = if options.ignoreClient == false then false else true, if options.ignoreGui == false then false else true
+ 
+            local RaycastResult = self:raycast(nil, ignoreGui)
+            if not RaycastResult then
+                return
+            end
 
             local TargetCharacter = RaycastResult.Instance:FindFirstAncestorOfClass('Model')
-            if not TargetCharacter then return end
+            if not TargetCharacter then
+                return
+            end
 
             local Player = Players:GetPlayerFromCharacter(TargetCharacter)
-            if not Player then return end
+            if not Player or (ignoreClient and Player == client.Player) then
+                return
+            end
             
             return Player, TargetCharacter
         end
