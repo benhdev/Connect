@@ -109,6 +109,11 @@ return function (framework, Player)
 
         function mouse:ray (ignoreGui)
             local location = self:location()
+
+            if ignoreGui ~= false then
+                ignoreGui = true
+            end
+            
             if ignoreGui and client.Player.PlayerGui and #client.Player.PlayerGui:GetGuiObjectsAtPosition(location.X, location.Y) > 0 then
                 return
             end
@@ -119,6 +124,10 @@ return function (framework, Player)
         function mouse:raycast (distance, ignoreGui)
             if not distance then
                 distance = 1000
+            end
+
+            if ignoreGui ~= false then
+                ignoreGui = true
             end
 
             local target = self:ray(ignoreGui)
