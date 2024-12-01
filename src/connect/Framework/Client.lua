@@ -79,6 +79,10 @@ return function (framework, Player)
         local mouse = {}
         local client = self
 
+        function mouse:register ()
+            return self
+        end
+
         function mouse:icon (value)
             if self:iconEnabled() and not value then
                 return UserInputService.MouseIcon
