@@ -1,5 +1,13 @@
 --!strict
+local Players = game:GetService('Players')
 local UserInputService = game:GetService('UserInputService')
+
+type MouseGrabOptions = {
+    ignoreClient: boolean?,
+    ignoreGui: boolean?,
+    allowHumanoids: {}?,
+    allowParts: {}?,
+}
 
 return function (framework, Player)
     if framework:env() ~= "client" then
@@ -14,8 +22,8 @@ return function (framework, Player)
 
     function proxy:createInternalInputConnection ()
         return framework:create(self.UserId, UserInputService.InputBegan, function (connection, inputObject: InputObject, gameProcessed: boolean)
-            if self.onKeyDownCallback and self.onKeyDownCallback[inputObject.keyCode] then
-                local signal = self.onKeyDownCallback[inputObject.keyCode]
+            if self.onKeyDownCallback and self.onKeyDownCallback[inputObject.KeyCode] then
+                local signal = self.onKeyDownCallback[inputObject.KeyCode]
                 local callback = signal.Callback
 
                 if type(callback) == "function" then
@@ -61,6 +69,152 @@ return function (framework, Player)
         self.Rig = parts[1]
 
         return unpack(parts)
+    end
+
+    function proxy:mouse (): {}?
+        if not UserInputService.MouseEnabled then
+            return nil
+        end
+
+        local mouse = {}
+        local client = self
+
+        function mouse:icon (value)
+            if self:iconEnabled() and not value then
+                return UserInputService.MouseIcon
+            end
+            
+            if value then
+                UserInputService.MouseIcon = value
+                return UserInputService.MouseIcon
+            end
+
+            return nil
+        end
+
+        function mouse:iconEnabled ()
+            return UserInputService.MouseIconEnabled
+        end
+
+        function mouse:setMouseBehavior (mouseBehavior: Enum)
+            UserInputService.MouseBehavior = mouseBehavior
+        end
+
+        function mouse:delta ()
+            return UserInputService:GetMouseDelta()
+        end
+
+        function mouse:location ()
+            return UserInputService:GetMouseLocation()
+        end
+
+        function mouse:buttonsPressed ()
+            return UserInputService:GetMouseButtonsPressed()
+        end
+
+        function mouse:ray (ignoreGui)
+            local location = self:location()
+
+            if ignoreGui ~= false then
+                ignoreGui = true
+            end
+
+            if ignoreGui and client.Player.PlayerGui and #client.Player.PlayerGui:GetGuiObjectsAtPosition(location.X, location.Y) > 0 then
+                return
+            end
+
+            return workspace.CurrentCamera:ViewportPointToRay(location.X, location.Y)
+        end
+
+        function mouse:raycast (distance, ignoreGui)
+            if not distance or typeof(distance) == "boolean" then
+                if typeof(distance) == "boolean" and ignoreGui ~= false then
+                    ignoreGui = distance
+                end
+                
+                distance = 1000
+            end
+
+            if ignoreGui ~= false then
+                ignoreGui = true
+            end
+
+            local target = self:ray(ignoreGui)
+            if not target then
+                return
+            end
+
+            return workspace:Raycast(target.Origin, target.Direction :: number * distance :: number)
+        end
+
+        function mouse:defaultGrabValue (allowParts, RaycastResult: RaycastResult): Instance?
+            if typeof(allowParts) == "table" then
+                if table.find(allowParts, RaycastResult.Instance) then
+                    return RaycastResult.Instance
+                end
+
+                return nil
+            end
+
+            return if allowParts and RaycastResult.Instance:IsA('BasePart') then RaycastResult.Instance else nil
+        end
+
+        function mouse:grab (options: MouseGrabOptions?)
+            local options: MouseGrabOptions = (typeof(options) == "table" and options) or ({} :: MouseGrabOptions)
+            local ignoreClient, ignoreGui, allowHumanoids, allowParts =
+                if options.ignoreClient == false then false else true,
+                if options.ignoreGui == false then false else true,
+                options.allowHumanoids,
+                options.allowParts
+ 
+            local RaycastResult = self:raycast(nil, ignoreGui)
+            if not RaycastResult then
+                return
+            end
+
+            local TargetCharacter = RaycastResult.Instance:FindFirstAncestorOfClass('Model')
+            if not TargetCharacter then
+                return self:defaultGrabValue(allowParts, RaycastResult)
+            end
+
+            local Player = Players:GetPlayerFromCharacter(TargetCharacter)
+            if (not allowHumanoids and not Player) or (ignoreClient and Player == client.Player) then
+                return self:defaultGrabValue(allowParts, RaycastResult)
+            end
+            
+            if allowHumanoids then
+                if not TargetCharacter:FindFirstChild('Humanoid') then
+                    return self:defaultGrabValue(allowParts, RaycastResult)
+                end
+
+                if typeof(allowHumanoids) == "table" then
+                    if table.find(allowHumanoids, TargetCharacter) then
+                        return TargetCharacter
+                    end
+
+                    if not Player then
+                        TargetCharacter = nil
+                    end
+                end
+            end
+
+            return if Player then unpack({Player, TargetCharacter}) else TargetCharacter
+        end
+
+        function mouse:onClick (...)
+            return client:onClick(...)
+        end
+
+        function mouse:onRightClick (...)
+            return client:onRightClick(...)
+        end
+
+        function mouse:preventor ()
+            -- @todo observer functionality on mouse:location() to analyze
+            -- suspicious activity
+        end
+
+        return mouse
     end
 
     function proxy:onKeyPressed (keyCode, eventName, callback)
