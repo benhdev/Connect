@@ -14,8 +14,27 @@ https://www.roblox.com/library/13518158092/ConnectFramework
 #### v1.2 updates
 
 - Support for [Rojo](https://rojo.space/docs)
-- Introduction of [Sessions](#handling-sessions) & [Events](#using-events)
+- Introduction of [Sessions](#handling-sessions), [Events](#using-events), [Prompts](#using-prompts) and [Humanoids](#using-humanoids)
 - Introduction of initial [Data Storage & Retrieval](#data-storage--retrieval) functionality
+
+#### Directory
+
+- [Usage](#usage)
+
+  - [Connections](#handling-connections)
+  - [Sessions](#handling-sessions)
+  - [Events](#using-events)
+  - [Humanoids](#using-humanoids)
+  - [Clients](#using-clients)
+  - [Promps](#using-prompts)
+  - [Data Storage](#data-storage--retrieval)
+    - [Examples](#examples)
+  - [Error Handling](#error-handling)
+  - [Gameplay Loops](#core-gameplay-loops)
+  - [Threads](#threads)
+  - [Debugging](#debugging)
+
+- [Guidelines](#guidelines)
 
 ## Getting Started
 
@@ -203,7 +222,7 @@ Session:fetch(key)
 ```
 
 ```lua
-Session::retrieve(key)
+Session:retrieve(key)
 ```
 
 Saving a value in the Session
@@ -254,12 +273,60 @@ Session:onUpdate(key, function (self, value)
 end)
 ```
 
+Using `Session:onUpdate` within the client allows for automatic replication of session values from the server
+
+> <sub>server.lua</sub>
+>
+> ```lua
+> local Session = Connect:session()
+>
+> Session:onUpdate(key, function (self, value)
+>     print('Session updated:', value)
+> end)
+>
+> Session:update(key, value)
+> ```
+
+> <sub>client.lua</sub>
+>
+> ```lua
+> local Session = Connect:session()
+>
+> Session:onUpdate(key, function (self, value)
+>     print('Replicated:', value)
+> end)
+> ```
+
+Automatic replication can be **disabled** by returning `false` in the **latest server-sided onUpdate callback** or by adding `.private` to the session key
+
+> <sub>server.lua</sub>
+>
+> ```lua
+> local Session = Connect:session()
+>
+> Session:onUpdate(key, function (self, value)
+>     return false
+> end)
+>
+> Session:update(key, value)
+> ```
+
+> <sub>client.lua</sub>
+>
+> ```lua
+> local Session = Connect:session()
+>
+> Session:onUpdate(key, function (self, value)
+>     print('Replicated:', value)
+> end)
+> ```
+
 ### Using Events
 
 Connect provides various event utilities which can be used to handle specific functionality in one place
 
-> [!NOTE]
-> More functionality for events will be coming soon!
+> [!NOTE]  
+> Check out the [guidelines](#guidelines) for more information on Events
 
 Accessing the event object
 
@@ -293,6 +360,329 @@ Event:fire("action", 1, 2)
 >     print(response) -- 3
 > end)
 > ```
+
+Events may also be used for server to client replication and vice versa
+
+> <sub>init.server.lua</sub>
+>
+> ```lua
+> local ReplicatedStorage = game:GetService('ReplicatedStorage')
+> local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+>
+> -- Create the Event
+> local Event = Connect:event("PlayerAdded")
+>
+> Event:requested(function (self, ...)
+>     print(`Event requested:`, ...)
+> end)
+>
+> Connect:create('PlayerAdded', function (self, Player)
+>     Event:broadcast(Player)
+>     Event:replicate(Player)
+> end)
+> ```
+
+> <sub>init.client.lua</sub>
+>
+> ```lua
+> local ReplicatedStorage = game:GetService('ReplicatedStorage')
+> local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+>
+> -- Create the Event
+> local Event = Connect:event('PlayerAdded')
+>
+> Event:replicated(function (self, ...)
+>     print(`{Event.name} was replicated!`, ...)
+>     Event:request('testing...')
+> end)
+> ```
+
+### Using Humanoids
+
+Connect **provides various utilities** which can be used to integrate functionality with the Roblox **Humanoid** Instance
+
+Creating a new Rig
+
+```lua
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+Connect:create('PlayerAdded', function (self, Player)
+    -- Create a new Rig for the Player
+    local Rig = Connect:humanoid(Player)
+end)
+```
+
+Detecting when the Rig is ready for use
+
+```lua
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+Connect:create('PlayerAdded', function (self, Player)
+    -- Create a new Rig for the Player
+    local Rig = Connect:humanoid(Player)
+
+    if Rig:ready() then
+        print(Rig.Humanoid.Health)
+    end
+end)
+```
+
+or by using a callback
+
+```lua
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+Connect:create('PlayerAdded', function (self, Player)
+    -- Create a new Rig for the Player
+    local Rig = Connect:humanoid(Player)
+
+    Rig:ready(function (self, Humanoid, HumanoidRootPart)
+        print('Rig ready!', Humanoid.Health)
+    end)
+end)
+```
+
+Detecting when the Rig is added/refreshed
+
+```lua
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+Connect:create('PlayerAdded', function (self, Player)
+    -- Create a new Rig for the Player
+    local Rig = Connect:humanoid(Player)
+
+    Rig:added(function (self, Humanoid, HumanoidRootPart)
+        print('Rig added!', Humanoid.Health)
+    end)
+end)
+```
+
+Detecting when the Rig's Humanoid dies
+
+```lua
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+Connect:create('PlayerAdded', function (self, Player)
+    -- Create a new Rig for the Player
+    local Rig = Connect:humanoid(Player)
+
+    Rig:added(function (Character, Humanoid, HumanoidRootPart)
+        Character:died(function ()
+            print('Rig died!', Humanoid.Health)
+        end)
+    end)
+end)
+```
+
+> [!TIP]
+> The Humanoid utility callback methods (`ready`, `added` and `died`) all support the use of Events by passing the _(optional)_ event name and/or the event key as the argument(s)
+>
+> This example demonstrates the various ways an event can be registered as a callback
+>
+> ```lua
+> local ReplicatedStorage = game:GetService('ReplicatedStorage')
+> local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+>
+> local Event = Connect:event()
+> Event:listen('Humanoid.Ready', function (Rig)
+>     print(`{Rig.Name} is ready!`)
+> end)
+>
+> local CharacterEvent = Connect:event('Character')
+> CharacterEvent:listen('Humanoid.Added', function (Rig)
+>     print(`{Rig.Name} was added!`)
+> end)
+>
+> local HealthEvent = Connect:event('Health')
+> HealthEvent:listen('handle', function (Rig)
+>     print(`{Rig.Name} died!`)
+> end)
+>
+> Connect:create('PlayerAdded', function (self, Player)
+>     local Rig = Connect:humanoid(Player)
+>         :ready('Humanoid.Ready')
+>         :added('Character', 'Humanoid.Added')
+>         :died(HealthEvent)
+> end)
+> ```
+
+### Using Clients
+
+Connect provides a **Client** utility for LocalPlayer interaction and has various built-in event implementations
+
+> [!WARNING]
+> This utility is only available from within client-sided environments
+
+Accessing the Client
+
+```lua
+local Client = Connect:client()
+```
+
+Clients also have access to the Humanoid utility
+
+```lua
+local Client = Connect:client()
+local Rig = Client:humanoid()
+
+if Rig:ready() then
+    print(Client.Name, 'ready')
+end
+```
+
+Detecting keyboard input through the client
+
+```lua
+local Client = Connect:client()
+
+Client:onKeyPressed(Enum.KeyCode.Q, function (inputObject, gameProcessed)
+    if gameProcessed then
+        return
+    end
+
+    print('Key pressed!')
+end)
+```
+
+Detecting mouse input through the client
+
+```lua
+local Client = Connect:client()
+
+Client:onClick(function (inputObject, gameProcessed)
+    if gameProcessed then
+        return
+    end
+
+    print('Click')
+end)
+
+Client:onRightClick(function (inputObject, gameProcessed)
+    if gameProcessed then
+        return
+    end
+
+    print('Right click')
+end)
+```
+
+These callback methods also support the use of Events
+
+> [!NOTE]
+> Events need to be set up on the server first - this can be done by using the same line to define `ClickEvent` as in the below snippet, but within a server-sided script
+
+> <sub>client.lua</sub>
+>
+> ```lua
+> local Client = Connect:client()
+> local ClickEvent = Connect:event('Click')
+>
+> ClickEvent:listen('handle', function (inputObject, gameProcessed)
+>     if gameProcessed then
+>         return
+>     end
+>
+>     -- tell the server about the click
+>     ClickEvent:request()
+> end)
+>
+> ClickEvent:replicated(function (self, message)
+>     print(`Click replicated: {message}`)
+> end)
+>
+> Client:onClick(ClickEvent)
+> ```
+
+> <sub>server.lua</sub>
+>
+> ```lua
+> local ClickEvent = Connect:event('Click')
+>
+> ClickEvent:requested(function (self, Player, ...)
+>     print(`ClickEvent Requested: {Player.Name}`)
+>     ClickEvent:replicate(Player, 'success')
+> end)
+> ```
+
+### Using Prompts
+
+Connect provides various **prompt utilities** which can be used to integrate functionality with **ProximityPrompts**
+
+Creating a new Prompt
+
+```lua
+local Prompt = Connect:prompt(part)
+
+Prompt:create("do something", function (self, Player)
+    print("triggered")
+end)
+```
+
+Creating a single-use Prompt
+
+```lua
+local Prompt = Connect:prompt(part)
+
+Prompt:once("do something once", function (self, Player)
+    print("triggered once")
+end)
+```
+
+> [!WARNING]
+>
+> By default, `Prompt:once` will **destroy** the ProximityPrompt once the action has been triggered. This functionality can be disabled by setting a new callback for `onDisconnect`
+>
+> ```lua
+> local Prompt = Connect:prompt(part)
+>
+> local connection = Prompt:once("do something once", function (self, Player)
+>     print("triggered once")
+> end)
+>
+> connection:onDisconnect(function (self)
+>     -- disable the default functionality
+>     -- Prompt.ProximityPrompt:Destroy()
+> end)
+> ```
+
+Chaining multiple single-use Prompts
+
+```lua
+local Prompt = Connect:prompt(part)
+
+local connection = Prompt:once("do something once", function (self, Player)
+    print("triggered once")
+end)
+
+connection:onDisconnect(function (self)
+    -- disable the default functionality
+    local connection = Prompt:once("do something once again", function (self, Player)
+        print("triggered once again")
+    end)
+end)
+```
+
+Using a Prompt with multiple parts
+
+```lua
+local Prompt = Connect:prompt()
+
+local connection = Prompt:once(part1, "do something once", function (self, Player)
+    print("triggered once")
+end)
+
+connection:onDisconnect(function (self)
+    -- disable the default functionality
+    local connection = Prompt:once(part2, "do something once again", function (self, Player)
+        print("triggered once again")
+    end)
+end)
+```
 
 ### Data Storage & Retrieval
 
@@ -700,3 +1090,5 @@ Show how many server or client connections you have every 5 seconds depending on
 ```lua
 Connect:Counter()
 ```
+
+## Guidelines

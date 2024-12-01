@@ -1,4 +1,5 @@
 --!strict
+
 type table<T> = { [T] : any }
 
 type mt = { [string]: (...any?) -> ...any? } 
@@ -6,123 +7,137 @@ type module = typeof(setmetatable({}, {} :: mt)) & table<any>
 type array = table<number>
 type object = table<string>
 
-local events: module = {} :: module
-events.RandomGenerator = Random.new(os.time())
-
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
-
-function events.GetRemote (self: module, name: string): RemoteEvent | RemoteFunction
-	return ReplicatedStorage:WaitForChild(name, 5)
-end
-
-function events.FireClient (self: module, key: string, client: Player, data: object?)
-	local remote = self:GetRemote(key)
-	remote:FireClient(client, data)
-end
-
-function events.FireAllClients (self: module, key: string, data: object?)
-	local remote = self:GetRemote(key)
-	remote:FireAllClients(data)
-end
-
-function events.FireServer (self: module, key: string, data: any?)
-	local remote = self:GetRemote(key)
-	remote:FireServer(data)
-end
-
-function events.OnClientEvent (self: module, key: string, callback: (...any?) -> ...any?)
-	local remote = self:GetRemote(key)
-	remote.OnClientEvent:Connect(callback)
-end
-
-function events.InvokeServer (self: module, key: string, data: object?): any
-	local remote = self:GetRemote(key)
-	return remote:InvokeFunction(data)
-end
-
-function events.RandomInteger (self: module, min: number, max: number): number
-	return self.RandomGenerator:NextInteger(min, max)
-end
-
-function events.RandomNumber (self: module, ...: number?): number
-	return self.RandomGenerator:NextNumber(...)
-end
-
-function events.RoundDecimal (self: module, num: number, decimals: number): number
-	local multiplier = 1
-	for i = 1, decimals do
-		multiplier *= 10
-	end
-	
-	return math.floor(num * multiplier) / multiplier 
-end
-	
-function events.FormatNumber (self: module, num: number): string
-	local keys = {"K", "M", "B", "T", "Q"}
-
-	if num == 0 then
-		return "0 :("
-	end
-
-	local exponent = math.min(#keys, math.floor(math.log(num, 1000)))
-	local key = keys[exponent] or ""
-
-	return self:RoundDecimal(num / (1000 ^ exponent), 2) .. key
-end
-
-function events.LoadModuleInstance (self: module)
-	local InsertService = game:GetService("InsertService")
-	local ModuleModel = InsertService:LoadAsset(13412295730)
-
-	local Module = ModuleModel:FindFirstChildWhichIsA("ModuleScript")
-	Module.Name = "SharedModule"
-	Module.Parent = game:GetService("ReplicatedStorage")
-end
-
 local globalEvents = {}
 
-return {
-    -- EventHelpers = events,
+return function (self, key)
+    local framework = self
+    local key = framework:GetSignal(key) or tostring(key or "Global")
 
-    event = function (self, key)
-        key = key or "global"
+    local Folder, RemoteEvent, RemoteFunction
 
-        local event = globalEvents[key] or {
-            name = key,
+    if framework:env() == "client" then
+        Folder = ReplicatedStorage:WaitForChild('Connect\\Events', 7)
+        if not Folder then
+            error(`{key}Event/Function Not Found in ReplicatedStorage - Ensure you set up this event on the server first`)
+        end
 
-            listen = function (self, key, callback)
-                self.listeners[key] = callback
-            end,
+        RemoteEvent, RemoteFunction = Folder:WaitForChild(`{key}Event`, 7), Folder:WaitForChild(`{key}Function`, 7)
+        if not RemoteEvent or not RemoteFunction then
+            error(`{key}Event/Function Not Found in ReplicatedStorage - Ensure you set up this event on the server first`)
+        end
+    else
+        Folder = ReplicatedStorage:FindFirstChild('Connect\\Events') or Instance.new('Folder')
+        RemoteEvent, RemoteFunction = Folder:FindFirstChild(`{key}Event`) or Instance.new('RemoteEvent'), Folder:FindFirstChild(`{key}Function`) or Instance.new('RemoteFunction')
 
-            find = function (self, key)
-                if (self.listeners[key]) then
-                    return self.listeners[key]
-                end
+        if Folder.Parent ~= ReplicatedStorage or RemoteEvent.Parent ~= Folder or RemoteFunction.Parent ~= Folder then
+            RemoteEvent.Name = `{key}Event`
+            RemoteEvent.Parent = Folder
 
-                return nil
-            end,
+            RemoteFunction.Name = `{key}Function`
+            RemoteFunction.Parent = Folder
 
-            fire = function (self, key, ...)
-                if self.listeners[key] then
-                    local response = table.pack(self.listeners[key](...))
-
-                    if self:find(`{key}.finished`) then
-                        self.listeners[`{key}.finished`](unpack(response))
-                    end
-
-                    return unpack(response)
-                else
-                    warn(`{key} Event not found`)
-                end
-            end,
-
-            listeners = {},
-        }
-
-        event.dispatch = event.fire
-
-        globalEvents[key] = event
-
-        return event
+            Folder.Name = 'Connect\\Events'
+            Folder.Parent = ReplicatedStorage
+        end
     end
-}
+
+    local event = globalEvents[key] or {
+        name = key,
+        Name = key,
+
+        remote = RemoteEvent,
+
+        remoteF = RemoteFunction,
+
+        listen = function (self, key, callback)
+            self.listeners[key] = callback
+        end,
+
+        find = function (self, key)
+            if (self.listeners[key]) then
+                return self.listeners[key]
+            end
+
+            return nil
+        end,
+
+        dispatch = function (self, key, ...)
+            local key = (key and tostring(key)) or "handle"
+
+            if self.listeners[key] then
+                local response = table.pack(self.listeners[key](...))
+
+                if self:find(`{key}.finished`) then
+                    self.listeners[`{key}.finished`](unpack(response))
+                end
+
+                return unpack(response)
+            else
+                warn(`[{self.name}] "{key}" Event not found`)
+            end
+        end,
+
+        broadcast = function (self, ...)
+            if framework:env() ~= "server" then return end
+            self.remote:FireAllClients(...)
+        end,
+
+        replicate = function (self, client: Player, ...)
+            if framework:env() ~= "server" then return end
+            self.remote:FireClient(client, ...)
+        end,
+
+        requested = function (self, callback)
+            if framework:env() ~= "server" then return end
+            return framework:create(self.remote.OnServerEvent, callback)
+        end,
+
+        requestedOnce = function (self, callback)
+            if framework:env() ~= "server" then return end
+            return framework:once(self.remote.OnServerEvent, callback)
+        end,
+
+
+        request = function (self, ...)
+            if framework:env() ~= "client" then return end
+            self.remote:FireServer(...)
+        end,
+        
+        replicated = function (self, callback)
+            if framework:env() ~= "client" then return end
+            return framework:create(self.remote.OnClientEvent, callback)
+        end,
+
+        replicatedOnce = function (self, callback)
+            if framework:env() ~= "client" then return end
+            return framework:once(self.remote.OnClientEvent, callback)
+        end,
+
+        yielded = function (self, callback)
+            if framework:env() ~= "server" then return end
+            self.remoteF.OnServerInvoke = callback
+        end,
+
+        yield = function (self, ...)
+            if framework:env() ~= "client" then return end
+            return self.remoteF:InvokeServer(...)
+        end,
+
+        listeners = {},
+    }
+
+    event.fire = event.dispatch
+
+    globalEvents[key] = event
+
+    if typeof(key) == "RBXScriptSignal" then
+        event.connection = framework:create(key, event)
+    end
+
+    return setmetatable(event, { 
+        __tostring = function (self)
+            return self.name
+        end
+    })
+end

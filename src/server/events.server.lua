@@ -1,14 +1,26 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+--!strict
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
 -- Create the session
 local Session = Connect:session()
-local Event = Connect:event()
+local Event = Connect:event('Player')
 
-Event:listen("fetch", function (Player)
-    local key = Session:key(Player.UserId, "Points")
+-- Create events for the client
+local KeyboardEvent = Connect:event('KeyboardEvent')
+local MouseEvent = Connect:event('MouseEvent')
+
+local ClickEvent = Connect:event('Click')
+
+ClickEvent:requested(function (self, Player, ...)
+    -- print(`ClickEvent Requested: {Player.Name}`)
+    ClickEvent:replicate(Player, 'success')
+end)
+
+Event:listen('handle', function (self, Player)
+    local key = Session:key(Player.UserId, 'Points')
     -- Dispatch the Event which creates the leaderboard
-    local Leaderstats, Points = Event:dispatch("createLeaderboard", key)
+    local Leaderstats, Points = Event:dispatch('createLeaderboard', key)
     -- Fetch the player's saved data for this key
     local DataStoreRequest = Connect:fetch(key, function (self, response)
         Connect.tick(function (i)
@@ -27,12 +39,12 @@ Event:listen("fetch", function (Player)
     Leaderstats.Parent = Player
 end)
 
-Event:listen("fetch.finished", function ()
-    print("fetch.finished")
+Event:listen('handle.finished', function ()
+    print('handle.finished')
 end)
 
-Event:listen('store', function (Player)
-    local key = Session:key(Player.UserId, "Points")
+Event:listen('store', function (self, Player)
+    local key = Session:key(Player.UserId, 'Points')
     local value = Session:find(key)
 
     -- Save the player's points
@@ -44,18 +56,18 @@ Event:listen('store', function (Player)
     DataStoreRequest:sync()
 end)
 
-Event:listen("store.finished", function ()
+Event:listen('store.finished', function ()
     print(`store.finished`)
 end)
 
-Event:listen("createLeaderboard", function (key)
+Event:listen('createLeaderboard', function (key)
     -- Create the leaderboard
-    local Leaderstats = Instance.new("StringValue")
-    Leaderstats.Name = "leaderstats"
+    local Leaderstats = Instance.new('StringValue')
+    Leaderstats.Name = 'leaderstats'
 
     -- Create the points value for the leaderboard
-    local Points = Instance.new("IntValue")
-    Points.Name = "Points"
+    local Points = Instance.new('IntValue')
+    Points.Name = 'Points'
 
     -- Register a Key specific onUpdate handler
     Session:onUpdate(key, function (self, value)
@@ -65,6 +77,6 @@ Event:listen("createLeaderboard", function (key)
     return Leaderstats, Points
 end)
 
-Event:listen("createLeaderboard.finished", function ()
-    print("createLeaderboard.finished")
+Event:listen('createLeaderboard.finished', function ()
+    print('createLeaderboard.finished')
 end)

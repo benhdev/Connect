@@ -1,32 +1,30 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+--!strict
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
--- Create the session
-local Session = Connect:session()
-local Event = Connect:event()
+local PlayerEvent = Connect:event('Player')
 
--- Register the PlayerAdded Connection
-local connection = Connect:create("PlayerAdded", function (self, Player)
-    Event:dispatch("fetch", Player)
-
-    Connect:create(Player, "CharacterAdded", function (self, Character)
-        local Stepped = Connect:create(Character, "RunService.Stepped", function (self, runTime, step)
-            print("step")
-            if self:CurrentCycle() == 100 then
-                self:Disconnect()
-            end
-        end)
-
-        Stepped:onDisconnect(function (self)
-            print("Stepped disconnected!")
-            print("Average run time:", self:AverageRunTime())
-        end)
-    end)
+local HumanoidReady = Connect:event()
+HumanoidReady:listen('Humanoid.Ready', function (Rig)
+    print(`{Rig.Name} is ready!`)
 end)
 
--- Register the PlayerRemoving connection
-Connect:create("PlayerRemoving", function (self, Player)
-    Event:dispatch("store", Player)
+local HumanoidAdded = Connect:event('HumanoidAdded')
+HumanoidAdded:listen('handle', function (Rig)
+    print(`{Rig.Name} was added!`)
 end)
 
--- Connect:DebugEnabled("internal")
+local HumanoidDied = Connect:event('HumanoidDied')
+HumanoidDied:listen('handle', function (Rig)
+    print(`{Rig.Name} died!`)
+end)
+
+-- Connect:create('PlayerAdded', function (self, Player)
+--     local Rig = Connect:humanoid(Player)
+--         :ready(PlayerEvent)
+--         :added(HumanoidAdded)
+--         :died(HumanoidDied)
+-- end)
+
+Connect:create('PlayerAdded', PlayerEvent)
+Connect:create('PlayerRemoving', PlayerEvent, 'store')

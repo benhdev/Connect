@@ -42,6 +42,7 @@ function module:Initialize()
             local package = require(item) :: module
             if typeof(package) == "function" then
                 self.framework[item.Name] = package
+                self.framework[item.Name:lower()] = package
             end
 
             if typeof(package) == "table" then
@@ -91,6 +92,10 @@ function module:Initialize()
         }, callback)
     end
 
+    if self:env() == 'server' then
+        self:event()
+    end
+
     return self
 end
 
@@ -102,6 +107,20 @@ return module:Initialize()
           <string name="Name">Framework</string>
         </Properties>
         <Item class="ModuleScript" referent="4">
+          <Properties>
+            <string name="Name">Camera</string>
+            <string name="Source">return {
+    camera = function (self)
+        return {
+            tween = function (self, Rig, options)
+                return {}
+            end,
+        }
+    end
+}</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="5">
           <Properties>
             <string name="Name">Cleanup</string>
             <string name="Source">return function (self: module): ()
@@ -152,7 +171,7 @@ return module:Initialize()
 end</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="5">
+        <Item class="ModuleScript" referent="6">
           <Properties>
             <string name="Name">Connections</string>
             <string name="Source"><![CDATA[--!strict
@@ -266,7 +285,7 @@ return module
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="6">
+        <Item class="ModuleScript" referent="7">
           <Properties>
             <string name="Name">Debug</string>
             <string name="Source">--!strict
@@ -287,6 +306,10 @@ function module.DebugEnabled (self, v)
 	end
 
 	return self.DebugMode
+end
+
+function module.env (self)
+	return if RunService:IsClient() then "client" else "server"
 end
 
 function module.CallstackLevel (self)
@@ -328,7 +351,7 @@ end
 return module</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="7">
+        <Item class="ModuleScript" referent="8">
           <Properties>
             <string name="Name">Event</string>
             <string name="Source"><![CDATA[--!strict
@@ -343,6 +366,7 @@ local events: module = {} :: module
 events.RandomGenerator = Random.new(os.time())
 
 local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Players = game:GetService('Players')
 
 function events.GetRemote (self: module, name: string): RemoteEvent | RemoteFunction
 	return ReplicatedStorage:WaitForChild(name, 5)
@@ -403,25 +427,35 @@ function events.FormatNumber (self: module, num: number): string
 	return self:RoundDecimal(num / (1000 ^ exponent), 2) .. key
 end
 
-function events.LoadModuleInstance (self: module)
-	local InsertService = game:GetService("InsertService")
-	local ModuleModel = InsertService:LoadAsset(13412295730)
-
-	local Module = ModuleModel:FindFirstChildWhichIsA("ModuleScript")
-	Module.Name = "SharedModule"
-	Module.Parent = game:GetService("ReplicatedStorage")
-end
-
 local globalEvents = {}
 
 return {
     -- EventHelpers = events,
 
     event = function (self, key)
-        key = key or "global"
+        local framework = self
+        key = key or "Global"
+
+        local RemoteEvent
+
+        if framework:env() == "client" then
+            RemoteEvent = ReplicatedStorage:WaitForChild(`{key}Event`, 7)
+            if not RemoteEvent then
+                error(`{key}Event Not Found in ReplicatedStorage - Ensure you set up the event first on the server`)
+            end
+        else
+            RemoteEvent = ReplicatedStorage:FindFirstChild(`{key}Event`) or Instance.new('RemoteEvent')
+
+            if RemoteEvent.Parent ~= ReplicatedStorage then
+                RemoteEvent.Name = `{key}Event`
+                RemoteEvent.Parent = ReplicatedStorage
+            end
+        end
 
         local event = globalEvents[key] or {
             name = key,
+
+            remote = RemoteEvent,
 
             listen = function (self, key, callback)
                 self.listeners[key] = callback
@@ -435,7 +469,7 @@ return {
                 return nil
             end,
 
-            fire = function (self, key, ...)
+            dispatch = function (self, key, ...)
                 if self.listeners[key] then
                     local response = table.pack(self.listeners[key](...))
 
@@ -445,14 +479,49 @@ return {
 
                     return unpack(response)
                 else
-                    warn(`{key} Event not found`)
+                    warn(`[{self.name}] {key} Event not found`)
                 end
+            end,
+
+            broadcast = function (self, ...)
+                if framework:env() ~= "server" then return end
+                self.remote:FireAllClients(...)
+            end,
+
+            replicate = function (self, client: Player, ...)
+                if framework:env() ~= "server" then return end
+                self.remote:FireClient(client, ...)
+            end,
+
+            requested = function (self, callback)
+                if framework:env() ~= "server" then return end
+                return framework:create(self.remote.OnServerEvent, callback)
+            end,
+
+            requestedOnce = function (self, callback)
+                if framework:env() ~= "server" then return end
+                return framework:once(self.remote.OnServerEvent, callback)
+            end,
+
+            request = function (self, ...)
+                if framework:env() ~= "client" then return end
+                self.remote:FireServer(...)
+            end,
+            
+            replicated = function (self, callback)
+                if framework:env() ~= "client" then return end
+                return framework:create(self.remote.OnClientEvent, callback)
+            end,
+
+            replicatedOnce = function (self, callback)
+                if framework:env() ~= "client" then return end
+                return framework:once(self.remote.OnClientEvent, callback)
             end,
 
             listeners = {},
         }
 
-        event.dispatch = event.fire
+        event.fire = event.dispatch
 
         globalEvents[key] = event
 
@@ -462,7 +531,7 @@ return {
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="8">
+        <Item class="ModuleScript" referent="9">
           <Properties>
             <string name="Name">GetArguments</string>
             <string name="Source"><![CDATA[return function (self: module, ...): (any, RBXScriptSignal, (module, ...any?) -> any?)
@@ -492,7 +561,264 @@ end
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="9">
+        <Item class="ModuleScript" referent="10">
+          <Properties>
+            <string name="Name">Humanoid</string>
+            <string name="Source"><![CDATA[-- not tested this yet!
+
+return function (framework, Player)
+    if not Player then
+        error("No Player found for Humanoid")
+    end
+
+    local proxy = {
+        Player = Player or game.Players.LocalPlayer or nil,
+
+        Character = Player.Character or Player.CharacterAdded:Wait(),
+
+        Humanoid = nil,
+
+        HumanoidRootPart = nil,
+
+        onAddedCallback = nil,
+
+        onRiggedCallback = nil,
+
+        onDied = nil,
+
+        -- CORE FUNCTIONS
+
+        root = function (self, Player)
+            if not Player then Player = self.Player else self.Player = Player end
+
+            local Character = Player.Character
+            if not Character then 
+                return
+            end
+
+            self.Character = Character
+            self.Humanoid = Character:WaitForChild('Humanoid', 3)
+            self.HumanoidRootPart = Character:WaitForChild("HumanoidRootPart", 3)
+
+            return self, self.Humanoid, self.HumanoidRootPart
+        end,
+
+        wait = function (self)
+            if self.HumanoidRootPart and self.HumanoidRootPart:IsDescendantOf(game.Workspace) then
+                return self
+            end
+
+            repeat task.wait() until self.Humanoid and self.HumanoidRootPart and self.HumanoidRootPart:IsDescendantOf(game.Workspace) return self
+        end,
+
+        ready = function (self, eventName, callback)
+            if type(eventName) ~= "string" and type(eventName) ~= "function" and eventName then
+                return warn('Incorrect DataType passed ConnectHumanoid:added')
+            end
+
+            if not callback then
+                callback = eventName
+                eventName = nil
+            end
+
+            if not callback then
+                return self:wait()
+            end
+        
+            self.onRiggedEventName = eventName
+            self.onRiggedCallback = callback
+            return self;
+        end,
+
+        added = function (self, eventName, callback)
+
+            if type(eventName) ~= "string" and type(eventName) ~= "function" and eventName then
+                return warn('Incorrect DataType passed ConnectHumanoid:added')
+            end
+
+            if not callback then
+                callback = eventName
+                eventName = nil
+            end
+
+            if not callback then
+                self.onAddedCallback = true
+                return self:wait()
+            end
+
+            self.onAddedEventName = eventName
+            self.onAddedCallback = callback
+            return self;
+        end,
+
+        finished = function (self)
+            local proxy = self
+
+            if self.onRiggedCallback and self:wait() then
+                if type(self.onRiggedCallback) == "string" then
+                    local Event = framework:event(self.onRiggedEventName)
+                    Event:dispatch(self.onRiggedCallback, self, self.Humanoid, self.HumanoidRootPart)    
+                end
+
+                if type(self.onRiggedCallback) == "function" then
+                    self.onRiggedCallback(self, self.Humanoid, self.HumanoidRootPart)
+                end
+            end
+
+            if self.onAddedCallback then
+                if not self.onRiggedCallback then
+                    self:wait()
+                end
+
+                if table.find({"function", "string"}, type(proxy.onAddedCallback)) then
+                    framework:create(self.Player.UserId, self.Player.CharacterAdded, function (self, Character)
+                        if type(proxy.onAddedCallback) == "string" then
+                            local Event = framework:event(proxy.onAddedEventName)
+                            return proxy:root(Player), proxy:wait(), Event:dispatch(proxy.onAddedCallback, proxy, proxy.Humanoid, proxy.HumanoidRootPart)
+                        end
+
+                        if type(proxy.onAddedCallback) == "function" then
+                            return proxy:root(Player), proxy:wait(), proxy.onAddedCallback(proxy, proxy.Humanoid, proxy.HumanoidRootPart)
+                        end
+                    end)
+                end
+
+                if type(proxy.onAddedCallback) == "string" then
+                    local Event = framework:event(proxy.onAddedEventName)
+                    return Event:dispatch(self.onAddedCallback, self, self.Humanoid, self.HumanoidRootPart)
+                end
+
+
+                if type(proxy.onAddedCallback) == "function" then
+                    return self.onAddedCallback(self, self.Humanoid, self.HumanoidRootPart)
+                end
+            end
+        end,
+
+        -- GENERAL FUNCTIONS
+        -- These functions must first call self:wait()
+        
+        use = function (self, instance: Instance, options: {})
+            self:wait()
+            
+            if instance:IsA('Accessory') then
+                for prop,value in next, options do
+                    instance[prop] = value
+                end
+                
+                instance.Parent = self.Character
+            end
+
+            if instance:IsA('IKControl') then
+                for prop,value in next, options do
+                    instance[prop] = if type(value) == 'string' then self.Character:FindFirstChild(value) else value
+                end
+
+                instance.Parent = self.Humanoid
+            end
+        end,
+
+        died = function (self, eventName, callback)
+            self:wait()
+
+            if type(eventName) ~= "string" and type(eventName) ~= "function" and eventName then
+                return warn('Incorrect DataType passed ConnectHumanoid:died')
+            end
+
+            if not callback then
+                callback = eventName
+                eventName = nil
+            end
+
+            if not callback then
+                return self, self.Humanoid.Died:Wait()
+            end
+
+            local rig = self
+
+            if not self.onAddedCallback or not self.onDied then
+                if not (self.onRiggedCallback and not self.onAddedCallback) then
+                    framework:create(self.Player.UserId, self.Player.CharacterAdded, function (self, Character)
+                        rig:root(self.Player)
+                        rig:died(eventName, callback)
+                    end)
+                end
+            end
+
+            self.onDied = framework:create(self.Humanoid.Died, function (connection)
+                if type(callback) == "string" then
+                    local Event = framework:event(if type(eventName) == "string" then eventName else nil)
+                    return Event:dispatch(callback, self)
+                end
+                
+                return callback(self)
+            end)
+
+            return self
+        end,
+
+        damage = function  (self, amount: number, takeDamage: boolean)
+            self:wait()
+
+            if takeDamage then
+                self.Humanoid:TakeDamage(amount)
+            end
+
+            self.Humanoid.Health -= (amount or 100)
+        end,
+
+        pivot = function (self, target: CFrame)
+            return self:wait(), self:PivotTo(target)
+        end,
+
+        animate = function (self)
+            self:wait()
+        end,
+    }
+
+    local Rig, Humanoid, HumanoidRootPart = proxy:root()
+
+    setmetatable(proxy, {
+        __index = function (self, key)
+            if (table.find({'onRiggedCallback', 'onRiggedEventName', 'onAddedEventName', 'onAddedCallback', 'onDied'}, key)) then
+                return
+            end
+
+            if rawget(self, 'Character') then
+                local ref = self.Character[key]
+                if not ref then 
+                    return 
+                end
+
+                if type(ref) == "function" then
+                    return function (this, arg)
+                        local success, result = pcall(ref, this.Character, arg)
+
+                        if not success then
+                            warn(result)
+                        end
+
+                        return success and result
+                    end
+                end
+
+                return ref
+            end
+        end,
+
+        __newindex = function (self, key, value)
+            return rawset(self, key, value)
+        end,
+    })
+
+    return proxy, Humanoid, HumanoidRootPart, task.defer(function ()
+        proxy:finished()
+    end)
+end
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="11">
           <Properties>
             <string name="Name">Pointers</string>
             <string name="Source">--!strict
@@ -517,13 +843,75 @@ function module.setPointers (self: module)
 	self.pointers.store = self.Store
     self.pointers.session = self.Session
 
+    function self.pointers:localPlayer ()
+        if self:env() == 'client' then
+            return game.Players.LocalPlayer
+        end
+    end
+
     return self.pointers
 end
 
 return module</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="10">
+        <Item class="ModuleScript" referent="12">
+          <Properties>
+            <string name="Name">Prompt</string>
+            <string name="Source">return {
+    prompt = function (Connect, instance)
+        local prompt = {
+            Instance = instance,
+
+            ProximityPrompt = Instance.new("ProximityPrompt"),
+
+            Connection = nil,
+
+            initialize = function (self, instance, label)
+                self.Instance = instance
+
+                self.ProximityPrompt.ActionText = label
+                self.ProximityPrompt.HoldDuration = 0.3
+                self.ProximityPrompt.Parent = instance
+
+                return self.ProximityPrompt
+            end,
+
+            create = function (self, instance, label, callback)
+                if typeof(instance) == "string" then
+                    callback = label
+                    label = instance
+                    instance = self.Instance
+                end
+
+                self:initialize(instance, label)
+                self.Connection = Connect:create(self.ProximityPrompt, "Triggered", callback)
+
+                return self.Connection, self.ProximityPrompt
+            end,
+
+            once = function (self, instance, label, callback)
+                if typeof(instance) == "string" then
+                    callback = label
+                    label = instance
+                    instance = self.Instance
+                end
+
+                local prompt = self:initialize(instance, label)
+                self.Connection = Connect:once(self.ProximityPrompt, "Triggered", callback):onDisconnect(function (self)
+                    prompt:Destroy()
+                end)
+
+                return self.Connection, self.ProximityPrompt
+            end,
+        }
+
+        return prompt, prompt.ProximityPrompt
+    end
+}</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="13">
           <Properties>
             <string name="Name">ProxyConnection</string>
             <string name="Source"><![CDATA[--!strict
@@ -697,6 +1085,8 @@ function module.ProxyConnection (self: module, key: any, signal: RBXScriptSignal
 				if connection and connection.Connected then
 					self.onDisconnectHandlerCallback = handler
 				end
+
+				return self
 			end;
 		} :: module
 
@@ -801,7 +1191,193 @@ return module
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="11">
+        <Item class="ModuleScript" referent="14">
+          <Properties>
+            <string name="Name">Session</string>
+            <string name="Source">--!strict
+type table&lt;T> = { [T] : any }
+
+type mt = { [string]: (...any?) -> ...any? }
+type module = typeof(setmetatable({}, {} :: mt)) &amp; table&lt;any>
+type array = table&lt;number>
+type object = table&lt;string>
+
+local ReplicatedStorage: ReplicatedStorage = game:GetService('ReplicatedStorage')
+
+local session = { updateHandlers = {}, object = script:FindFirstChild('Replicator') or Instance.new('Configuration', script) }
+session.object.Name = 'Replicator'
+
+return function (self, key: string?, initialData: object?)
+    local framework = self
+
+    local storage: object = session
+    storage.Data = session.Data or {}
+
+    function storage:Get (key): any?
+        local key = tostring(key)
+        local nest = key:split(".")
+
+        local t = self.Data do
+            for _,nest in next, nest do
+                local nest = tonumber(nest) or nest
+                
+                if not t[nest] then
+                    return nil
+                end
+    
+                t = t[nest]
+            end
+        end
+
+        return t
+    end
+
+    function storage:Key (...)
+        local parts = {...}
+        return table.concat(parts, ".")
+    end
+
+    function storage:Update (key, value): ()
+        local key = tostring(key)
+        local nest = key:split(".")
+        table.insert(nest, (#nest), "")
+
+        local t = self.Data do
+            for _,nest in next, nest do
+                if nest:len() == 0 then
+                    break
+                end
+                
+                local nest = tonumber(nest) or nest
+                
+                if not t[nest] then
+                    t[nest] = {}
+                end
+
+                t = t[nest]
+            end
+        end
+
+        t[tonumber(nest[#nest]) or nest[#nest]] = value
+        
+        local replicateSubject = true
+        
+        if self.onUpdateHandler and typeof(self.onUpdateHandler) == "function" then
+            replicateSubject = not (self:onUpdateHandler(key, value) == false)
+        end
+        
+        if self.updateHandlers[key] then
+            for _,callback in next, self.updateHandlers[key] do
+                if typeof(callback) == "function" then
+                    replicateSubject = not (callback(self, value) == false)
+                end
+            end
+        end
+
+        if replicateSubject and not key:lower():find('private.') and not key:lower():find('.private') then
+            self.object:SetAttribute(table.concat(key:split("."), '_'), value)
+        end
+    end
+
+    function storage:increment (key, value)
+        self:update(key, (self:get(key) or 0) + 1)
+    end
+
+    function storage:Remove (key): ()
+        local key = tostring(key)
+        local nest = key:split(".")
+        
+        table.insert(nest, (#nest), "")
+
+        local t = self.Data do
+            for _,nest in next, nest do
+                if nest:len() == 0 then
+                    break
+                end
+                
+                local nest = tonumber(nest) or nest
+                
+                if not t[nest] then
+                    return
+                end
+
+                t = t[nest]
+            end
+        end
+
+        t[tonumber(nest[#nest]) or nest[#nest]] = nil
+
+        if self.updateHandlers[key] then
+            self.updateHandlers[key] = nil
+        end
+    end
+    
+    function storage:onUpdate (key, callback)
+        if typeof(key) == "function" then
+            rawset(self, "onUpdateHandler", key)
+            return
+        end
+        
+        if typeof(key) ~= "string" then
+            error("Invalid key for Nest:onUpdate")
+        end
+        
+        if not self.updateHandlers[key] then
+            self.updateHandlers[key] = {}
+        end
+
+        if framework:env() == "client" then
+            local attributeKey = table.concat(key:split("."), '_')
+
+            local Replicator = self.object
+            local ReplicatorSignal = Replicator:GetAttributeChangedSignal(attributeKey)
+
+            framework:create(ReplicatorSignal, function ()
+                return callback(self, Replicator:GetAttribute(attributeKey))
+            end)
+        end
+        
+        table.insert(self.updateHandlers[key], callback)
+    end
+
+    storage.store = storage.Update
+    storage.save = storage.Update
+    storage.set = storage.Update
+    storage.update = storage.Update
+
+    storage.get = storage.Get
+    storage.fetch = storage.Get
+    storage.retrieve = storage.Get
+    storage.find = storage.Get
+
+    storage.remove = storage.Remove
+    storage.unset = storage.Remove
+    storage.delete = storage.Remove
+    
+    storage.key = storage.Key
+
+    if (typeof(key) == 'table') then
+        initialData = key
+        key = 'core'
+    end
+
+    if (key and initialData) then
+        storage:store(key, initialData)
+    end
+
+    return setmetatable(storage, {
+        __index = function (self, key)
+            return self:Get(key)
+        end;
+        
+        __newindex = function (self, key, value)
+            self:Update(key, value)
+        end;
+    })
+end</string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="15">
           <Properties>
             <string name="Name">Signal</string>
             <string name="Source"><![CDATA[--!strict
@@ -854,11 +1430,11 @@ return module
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="12">
+      <Item class="Folder" referent="16">
         <Properties>
           <string name="Name">Services</string>
         </Properties>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">DataService</string>
             <string name="Source"><![CDATA[--!strict
@@ -963,7 +1539,7 @@ function DataService.proxy (self, callback, onError)
 		end;
 
 		sync = function (self)
-			repeat task.wait() until self:finished()
+			repeat task.wait() until self:finished() return true
 		end;
 
 		setFinished = function (self)
@@ -1033,7 +1609,7 @@ return framework
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="14">
+        <Item class="ModuleScript" referent="18">
           <Properties>
             <string name="Name">FeatureService</string>
             <string name="Source">-- --!strict
@@ -1272,7 +1848,7 @@ return framework
 return {}</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="19">
           <Properties>
             <string name="Name">HelperService</string>
             <string name="Source"><![CDATA[--!strict
@@ -1285,147 +1861,6 @@ type object = table<string>
 
 local framework: module = {} :: module
 local HelperService: module = {} :: module
-
-local session = {}
-
-function framework.Session (self, object: object?)
-	local storage: object = session
-	storage.Data = object or session.Data or {}
-
-	function storage:Get (key): any?
-		local key = tostring(key)
-		local nest = key:split(".")
-
-		local t = self.Data do
-			for _,nest in next, nest do
-				local nest = tonumber(nest) or nest
-				
-				if not t[nest] then
-					return nil
-				end
-	
-				t = t[nest]
-			end
-		end
-
-		return t
-	end
-
-	function storage:Key (...)
-		local parts = {...}
-		return table.concat(parts, ".")
-	end
-
-	function storage:Update (key, value): ()
-		local key = tostring(key)
-		local nest = key:split(".")
-		table.insert(nest, (#nest), "")
-
-		local t = self.Data do
-			for _,nest in next, nest do
-				if nest:len() == 0 then
-					break
-				end
-				
-				local nest = tonumber(nest) or nest
-				
-				if not t[nest] then
-					t[nest] = {}
-				end
-
-				t = t[nest]
-			end
-		end
-
-		t[tonumber(nest[#nest]) or nest[#nest]] = value
-		
-		if self.onUpdateHandler and typeof(self.onUpdateHandler) == "function" then
-			self:onUpdateHandler(key, value)
-		end
-		
-		if self.updateHandlers[key] then
-			for _,callback in next, self.updateHandlers[key] do
-				if typeof(callback) == "function" then
-					callback(self, value)
-				end
-			end
-		end
-	end
-
-	function storage:Remove (key): ()
-		local key = tostring(key)
-		local nest = key:split(".")
-		
-		table.insert(nest, (#nest), "")
-
-		local t = self.Data do
-			for _,nest in next, nest do
-				if nest:len() == 0 then
-					break
-				end
-				
-				local nest = tonumber(nest) or nest
-				
-				if not t[nest] then
-					return
-				end
-
-				t = t[nest]
-			end
-		end
-
-		t[tonumber(nest[#nest]) or nest[#nest]] = nil
-
-		if self.updateHandlers[key] then
-			self.updateHandlers[key] = nil
-		end
-	end
-	
-	storage.updateHandlers = {}
-	
-	function storage:onUpdate (key, callback)
-		if typeof(key) == "function" then
-			rawset(self, "onUpdateHandler", key)
-			return
-		end
-		
-		if typeof(key) ~= "string" then
-			error("Invalid key for Nest:onUpdate")
-		end
-		
-		if not self.updateHandlers[key] then
-			self.updateHandlers[key] = {}
-		end
-		
-		table.insert(self.updateHandlers[key], callback)
-	end
-
-	storage.store = storage.Update
-	storage.save = storage.Update
-	storage.set = storage.Update
-	storage.update = storage.Update
-
-	storage.get = storage.Get
-	storage.fetch = storage.Get
-	storage.retrieve = storage.Get
-	storage.find = storage.Get
-
-	storage.remove = storage.Remove
-	storage.unset = storage.Remove
-	storage.delete = storage.Remove
-	
-	storage.key = storage.Key
-
-	return setmetatable(storage, {
-		__index = function (self, key)
-			return self:Get(key)
-		end;
-		
-		__newindex = function (self, key, value)
-			self:Update(key, value)
-		end;
-	})
-end
 
 function HelperService.RoundDecimal (self: module, num: number, decimals: number): number
 	local multiplier = 1
@@ -1455,11 +1890,11 @@ return framework
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="16">
+      <Item class="Folder" referent="20">
         <Properties>
           <string name="Name">Threads</string>
         </Properties>
-        <Item class="ModuleScript" referent="17">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">Delay</string>
             <string name="Source">return function (self: module, seconds: number, key: string, callback: () -> ()): thread
@@ -1472,7 +1907,7 @@ return framework
 end</string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="22">
           <Properties>
             <string name="Name">Thread</string>
             <string name="Source">--!strict
@@ -1504,11 +1939,11 @@ return module</string>
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="19">
+      <Item class="Folder" referent="23">
         <Properties>
           <string name="Name">Validation</string>
         </Properties>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Validate</string>
             <string name="Source"><![CDATA[--!strict
@@ -1583,137 +2018,45 @@ return module
         </Item>
       </Item>
     </Item>
-    <Item class="Folder" referent="21">
+    <Item class="Folder" referent="25">
       <Properties>
         <string name="Name">Shared</string>
       </Properties>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="22">
+  <Item class="ServerScriptService" referent="26">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Script" referent="23">
+    <Item class="Script" referent="27">
       <Properties>
         <string name="Name">server</string>
         <token name="RunContext">0</token>
-        <string name="Source">local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
+        <string name="Source">local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
--- Create the session
-local Session = Connect:session()
 local Event = Connect:event()
 
--- Register the PlayerAdded Connection
-local connection = Connect:create("PlayerAdded", function (self, Player)
-    Event:dispatch("fetch", Player)
+Event:listen('Humanoid.Ready', function (Rig)
+    print(`{Rig.Name} is ready!`)
 end)
 
--- Register the PlayerRemoving connection
-Connect:create("PlayerRemoving", function (self, Player)
-    Event:dispatch("store", Player)
+Event:listen('Humanoid.Added', function (Rig)
+    print(`{Rig.Name} was added!`)
 end)
 
--- Connect:DebugEnabled("internal")</string>
+Event:listen('Humanoid.Died', function (Rig)
+    print(`{Rig.Name} died!`)
+end)
+
+Connect:create('PlayerAdded', function (self, Player)
+    local Rig = Connect:humanoid(Player)
+        :ready('Humanoid.Ready')
+        :added('Humanoid.Added')
+        :died('Humanoid.Died')
+end)</string>
       </Properties>
-      <Item class="Script" referent="24">
-        <Properties>
-          <string name="Name">datastore</string>
-          <token name="RunContext">0</token>
-          <string name="Source">-- local ReplicatedStorage = game:GetService("ReplicatedStorage")
--- local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
-
--- Connect.new("PlayerAdded", function (self, Player)
--- 	-- Do all DataStore requests at the top
--- 	-- as they do not work within Scheduled Retries
--- 	print("PlayerAdded")
-	
--- 	local leaderstats = Instance.new("IntValue")
--- 	leaderstats.Name = "leaderstats"
--- 	leaderstats.Parent = Player
-	
--- 	local DataStoreRequest = Connect:Fetch(Player.UserId, function (self, response)
--- 		local Coins = Instance.new("IntValue")
--- 		Coins.Name = "Coins"
--- 		Coins.Value = response or 0
--- 		Coins.Parent = leaderstats
--- 	end)
-	
--- 	DataStoreRequest:onError(function (self, err)
--- 		warn(err)
-		
--- 		if self.retries == 5 then
--- 			self:CancelRetry()
--- 		end
--- 	end)
-	
--- 	local GemsFeature = Connect:Feature("Gems", function (self)
--- 		local feature = self
-		
--- 		local DataStoreRequest = Connect:Fetch(Player.UserId .. "Gems", function (self, response)
--- 			local Gems = Instance.new("IntValue")
--- 			Gems.Name = "Gems"
--- 			Gems.Value = response or 0
--- 			Gems.Parent = leaderstats
-			
--- 			feature:onDisable(function ()
--- 				Connect:Store(Player.UserId .. "Gems", Gems.Value, function (self, response)
--- 					Gems:Destroy()
--- 				end)
--- 			end)
--- 		end)
--- 	end)
-	
--- 	--GemsFeature:onEnable(function (self)
--- 	--	self:run()
--- 	--end)
-	
--- 	Connect.new(Player, "CharacterAdded", function (self, Character)
--- 		print("CharacterAdded")
--- 	end)
-	
--- end)
-
--- Connect.new("PlayerRemoving", function (self, Player)
--- 	Connect:Store(Player.UserId, 10, function (self, response)
--- 		print("success")
--- 	end)
--- end)
-
-
--- print(Connect.HelperService:FormatNumber(1000000))
-
--- local nest = Connect.HelperService:Nest({
--- 	playerData = {
--- 		{
--- 			testValue = 6;
--- 			otherValue = 7;
--- 		};
-		
--- 		{
--- 			testValue = 4;
--- 			otherValue = 5;
--- 		};
--- 	}
--- })
-
--- nest:onUpdate(function (self, key, value)
--- 	print("Global update:", key, value)
--- end)
-
--- nest:onUpdate('playerData.2.testValue', function (self, value)
--- 	print("playerData.2.testValue update:", value)
--- end)
-
--- nest:Update("hello.my.name.is.web", 5)
-
--- nest["hello.there"] = 5
--- nest["playerData.2.testValue"] = 9
-
--- print(nest.Data)</string>
-        </Properties>
-      </Item>
-      <Item class="Script" referent="25">
+      <Item class="Script" referent="28">
         <Properties>
           <string name="Name">events</string>
           <token name="RunContext">0</token>
@@ -1789,165 +2132,147 @@ Event:listen("createLeaderboard.finished", function ()
 end)</string>
         </Properties>
       </Item>
-      <Item class="Script" referent="26">
+    </Item>
+  </Item>
+  <Item class="ServerStorage" referent="29">
+    <Properties>
+      <string name="Name">ServerStorage</string>
+    </Properties>
+    <Item class="Folder" referent="30">
+      <Properties>
+        <string name="Name">Snippets</string>
+      </Properties>
+      <Item class="Script" referent="31">
         <Properties>
-          <string name="Name">old</string>
+          <string name="Name">LeaderboardHumanoidEvents</string>
           <token name="RunContext">0</token>
-          <string name="Source">-- local ReplicatedStorage = game:GetService("ReplicatedStorage")
+          <string name="Source"><![CDATA[local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
--- local Connect = require(ReplicatedStorage:WaitForChild("ConnectFramework"))
--- Connect:UseDataStore(4)
+local Event = Connect:event()
+local Session = Connect:session()
 
--- local Session = Connect:Session()
+Event:listen('Humanoid.Ready', function (self, Humanoid, HumanoidRootPart)
+    local key = Session:key(self.Player.UserId, 'Joins')
+    Session:increment(key, 1)
+end)
 
--- Session:onUpdate(function (self, key, value)
---     print(`{key}: {value}`)
--- end)
+Event:listen('Humanoid.Added', function (self, Humanoid, HumanoidRootPart)
+    local key = Session:key(self.Player.UserId, 'Respawns')
+    Session:increment(key, 1)
+end)
 
--- Connect.new("PlayerAdded", function (self, Player)
---     local key = Session:Key(Player.UserId)
---     print(key);
+Event:listen('Humanoid.Died', function (self, Humanoid, HumanoidRootPart)
+    local key = Session:key(self.Player.UserId, 'Deaths')
+    Session:increment(key, 1)
+end)
 
--- 	local leaderstats = Instance.new("IntValue")
--- 	leaderstats.Name = "leaderstats"
--- 	leaderstats.Parent = Player
+Connect:create('PlayerAdded', function (self, Player)
+    local Rig = Connect:humanoid(Player)
+        :added('Humanoid.Added')
+        :died('Humanoid.Died')
 
---     local DataStoreRequest = Connect:Fetch(Player.UserId, function (self, response)
---         local Time = Instance.new("StringValue")
--- 		Time.Name = "Time"
+    local key = Session:key(Player.UserId)
 
--- 		Session:onUpdate(key, function (self, value)
---             local value = tonumber(value)
+    local DataStoreRequest = Connect:fetch(key, function (self, response)
+        local Leaderboard = Instance.new('StringValue')
+        Leaderboard.Name = 'leaderstats'
 
---             local f,dv
---             if (value >= 86400) then
---                 dv = math.floor(value/86400)
---                 f = dv .. " day" .. (if tonumber(dv) == 1 then "" else "s") .. " "
---             end
+        local Joins = Instance.new('IntValue')
+        Joins.Name = 'Joins'
 
---             local m = value
---             if (f and dv) then
---                 m = value - (86400 * dv)
---             end
-
---             local t = {" min", " hour"}
---             local e = math.min(#t, math.floor(math.log(m, 60)))
---             local d = t[e] or (if m == 0 then "" else " sec")
-
---             local v = (f or "") .. (if m and m > 0 then math.floor(m / (60 ^ e)) else "")
---             Time.Value = v .. d .. (if (not tonumber(m) or tonumber(m) &lt;= 1) then "" else "s")
---         end)
+        local Respawns = Instance.new('IntValue')
+        Respawns.Name = 'Respawns'
         
---         Connect.tick(1, function ()
---             -- need to cancel this when the player
---             -- has left the game
---             print(key)
---             print(Session:Get(key))
---             print(response);
+        local Deaths = Instance.new('IntValue')
+        Deaths.Name = 'Deaths'
 
---             local value = (Session:Get(key) or (response or 0)) + 1
+        Session:onUpdate(
+            Session:key(key, 'Joins'),
+            function (self, value)
+                Joins.Value = value
+            end
+        )
 
---             if (value % 180 == 0) then
---                 -- autosave every 3 minutes
---                 Connect:Store(Player.UserId, value, function (self, response)
---                     return response
---                 end)
---             end
+        Session:onUpdate(
+            Session:key(key, 'Respawns'),
+            function (self, value)
+                Respawns.Value = value
+            end
+        )
 
---             Session:Update(key, value)
---         end, function ()
---             -- Cancel running if the player has left
---             return not (Player and Player.Parent)
---         end)
+        Session:onUpdate(
+            Session:key(key, 'Deaths'),
+            function (self, value)
+                Deaths.Value = value
+            end
+        )
 
---         Time.Parent = leaderstats
--- 	end)
-	
--- 	DataStoreRequest:onError(function (self, err)
--- 		warn(err)
-		
--- 		if self.retries == 5 then
--- 			self:CancelRetry()
--- 		end
--- 	end)
--- end)
+        Session:store(Session:key(key, 'Joins'), (response and response.Joins) or 0)
+        Session:store(Session:key(key, 'Respawns'), (response and response.Respawns) or 0)
+        Session:store(Session:key(key, 'Deaths'), (response and response.Deaths) or 0)
 
--- Connect:once("Players.PlayerRemoving", function (self, Player)
---     local key = Session:Key(Player.UserId)
+        Joins.Parent = Leaderboard
+        Respawns.Parent = Leaderboard
+        Deaths.Parent = Leaderboard
 
--- 	local value = Session:Get(key)
--- 	Session:Remove(key)
+        Leaderboard.Parent = Player
+    end)
 
--- 	local DataStoreRequest = Connect:Store(Player.UserId, value, function (self, response)
---         print(response)
---         return response
---     end)
+    if DataStoreRequest:sync() then
+        Connect:humanoid(Player):ready('Humanoid.Ready')
+    end
+end)
 
---     DataStoreRequest:onError(function (self, err)
---         warn(err)
-    
---         if self.retries == 5 then
---             self:CancelRetry()
---         end
---     end)
+Connect:create('PlayerRemoving', function (self, Player)
+    local key = Session:key(Player.UserId)
+    local value = Session:get(key)
 
---     print(`Here: {DataStoreRequest.response}`);
---     DataStoreRequest:sync()
---     print(`Done: {DataStoreRequest.response}`);
--- end)
+    Connect:store(key, value, function (self, response)
+        if response then
+            Session:remove(key)
+        end
 
--- game:BindToClose(function ()
---     -- this is problematic as Session.Data is nested
---     for userId, userData in next, Session.Data do
---         Session:Remove(userId)
-
---         local DataStoreRequest = Connect:Store(userId, userData, function (self, response)
---             return response
---         end)
-
---         DataStoreRequest:onError(function (self, err)
---             warn(err)
-		
---             if self.retries == 3 then
---                 self:CancelRetry()
---             end
---         end)
-
---         DataStoreRequest:sync()
---     end
--- end)</string>
+        print(response)
+    end)
+end)
+]]></string>
         </Properties>
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="27">
+  <Item class="SoundService" referent="32">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="28">
+  <Item class="StarterPlayer" referent="33">
     <Properties>
       <string name="Name">StarterPlayer</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="29">
+    <Item class="StarterPlayerScripts" referent="34">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="LocalScript" referent="30">
+      <Item class="LocalScript" referent="35">
         <Properties>
           <string name="Name">client</string>
-          <string name="Source">print("Hello world, from client!")</string>
+          <string name="Source">local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
+
+-- Create the Event
+local Event = Connect:event()</string>
         </Properties>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="31">
+  <Item class="Workspace" referent="36">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="FilteringEnabled">true</bool>
     </Properties>
-    <Item class="Part" referent="32">
+    <Item class="Part" referent="37">
       <Properties>
         <string name="Name">Baseplate</string>
         <bool name="Anchored">true</bool>

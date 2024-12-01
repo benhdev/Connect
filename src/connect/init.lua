@@ -1,4 +1,5 @@
 --!strict
+
 type table<T> = { [T] : any }
 
 type mt = { [string]: (...any?) -> ...any? }
@@ -20,6 +21,7 @@ function module:Initialize()
             local package = require(item) :: module
             if typeof(package) == "function" then
                 self.framework[item.Name] = package
+                self.framework[item.Name:lower()] = package
             end
 
             if typeof(package) == "table" then
@@ -67,6 +69,10 @@ function module:Initialize()
                 return counter
             end
         }, callback)
+    end
+
+    if self:env() == 'server' then
+        self:event()
     end
 
     return self

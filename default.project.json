@@ -18,6 +18,12 @@
       }
     },
 
+    "ServerStorage": {
+      "Snippets": {
+        "$path": "snippets"
+      }
+    },
+
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "client": {
