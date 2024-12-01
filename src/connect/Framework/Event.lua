@@ -14,19 +14,31 @@ return function (self, key)
     local framework = self
     local key = framework:GetSignal(key) or tostring(key or "Global")
 
-    local RemoteEvent
+    local Folder, RemoteEvent, RemoteFunction
 
     if framework:env() == "client" then
-        RemoteEvent = ReplicatedStorage:WaitForChild(`{key}Event`, 7)
-        if not RemoteEvent then
-            error(`{key}Event Not Found in ReplicatedStorage - Ensure you set up the event first on the server`)
+        Folder = ReplicatedStorage:WaitForChild('Connect\\Events', 7)
+        if not Folder then
+            error(`{key}Event/Function Not Found in ReplicatedStorage - Ensure you set up this event on the server first`)
+        end
+
+        RemoteEvent, RemoteFunction = Folder:WaitForChild(`{key}Event`, 7), Folder:WaitForChild(`{key}Function`, 7)
+        if not RemoteEvent or not RemoteFunction then
+            error(`{key}Event/Function Not Found in ReplicatedStorage - Ensure you set up this event on the server first`)
         end
     else
-        RemoteEvent = ReplicatedStorage:FindFirstChild(`{key}Event`) or Instance.new('RemoteEvent')
+        Folder = ReplicatedStorage:FindFirstChild('Connect\\Events') or Instance.new('Folder')
+        RemoteEvent, RemoteFunction = Folder:FindFirstChild(`{key}Event`) or Instance.new('RemoteEvent'), Folder:FindFirstChild(`{key}Function`) or Instance.new('RemoteFunction')
 
-        if RemoteEvent.Parent ~= ReplicatedStorage then
+        if Folder.Parent ~= ReplicatedStorage or RemoteEvent.Parent ~= Folder or RemoteFunction.Parent ~= Folder then
             RemoteEvent.Name = `{key}Event`
-            RemoteEvent.Parent = ReplicatedStorage
+            RemoteEvent.Parent = Folder
+
+            RemoteFunction.Name = `{key}Function`
+            RemoteFunction.Parent = Folder
+
+            Folder.Name = 'Connect\\Events'
+            Folder.Parent = ReplicatedStorage
         end
     end
 
@@ -35,6 +47,8 @@ return function (self, key)
         Name = key,
 
         remote = RemoteEvent,
+
+        remoteF = RemoteFunction,
 
         listen = function (self, key, callback)
             self.listeners[key] = callback
@@ -84,6 +98,7 @@ return function (self, key)
             return framework:once(self.remote.OnServerEvent, callback)
         end,
 
+
         request = function (self, ...)
             if framework:env() ~= "client" then return end
             self.remote:FireServer(...)
@@ -97,6 +112,16 @@ return function (self, key)
         replicatedOnce = function (self, callback)
             if framework:env() ~= "client" then return end
             return framework:once(self.remote.OnClientEvent, callback)
+        end,
+
+        yielded = function (self, callback)
+            if framework:env() ~= "server" then return end
+            self.remoteF.OnServerInvoke = callback
+        end,
+
+        yield = function (self, ...)
+            if framework:env() ~= "client" then return end
+            return self.remoteF:InvokeServer(...)
         end,
 
         listeners = {},
