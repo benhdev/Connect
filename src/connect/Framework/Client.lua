@@ -217,6 +217,124 @@ return function (framework, Player)
         return mouse
     end
 
+    function proxy:touchscreen (): {}?
+        if not UserInputService.TouchEnabled then
+            return nil
+        end
+
+        local client = self
+        local touchscreen = {}
+
+        function touchscreen:register (position)
+            local touch = { position = position }
+
+            function touch:location ()
+                return self.position
+            end
+
+            function touch:ray (ignoreGui)
+                local location = self:location()
+
+                if ignoreGui ~= false then
+                    ignoreGui = true
+                end
+
+                if ignoreGui and client.Player.PlayerGui and #client.Player.PlayerGui:GetGuiObjectsAtPosition(location.X, location.Y) > 0 then
+                    return
+                end
+
+                return workspace.CurrentCamera:ViewportPointToRay(location.X, location.Y)
+            end
+
+            function touch:raycast (distance, ignoreGui)
+                if not distance or typeof(distance) == "boolean" then
+                    if typeof(distance) == "boolean" and ignoreGui ~= false then
+                        ignoreGui = distance
+                    end
+                    
+                    distance = 1000
+                end
+
+                if ignoreGui ~= false then
+                    ignoreGui = true
+                end
+
+                local target = self:ray(ignoreGui)
+                if not target then
+                    return
+                end
+
+                return workspace:Raycast(target.Origin, target.Direction :: number * distance :: number)
+            end
+
+            function touch:grab (options: MouseGrabOptions?)
+                local options: MouseGrabOptions = (typeof(options) == "table" and options) or ({} :: MouseGrabOptions)
+                local ignoreClient, ignoreGui, allowHumanoids, allowParts =
+                    if options.ignoreClient == false then false else true,
+                    if options.ignoreGui == false then false else true,
+                    options.allowHumanoids,
+                    options.allowParts
+    
+                local RaycastResult = self:raycast(nil, ignoreGui)
+                if not RaycastResult then
+                    return
+                end
+
+                local TargetCharacter = RaycastResult.Instance:FindFirstAncestorOfClass('Model')
+                if not TargetCharacter then
+                    return self:defaultGrabValue(allowParts, RaycastResult)
+                end
+
+                local Player = Players:GetPlayerFromCharacter(TargetCharacter)
+                if (not allowHumanoids and not Player) or (ignoreClient and Player == client.Player) then
+                    return self:defaultGrabValue(allowParts, RaycastResult)
+                end
+                
+                if allowHumanoids then
+                    if not TargetCharacter:FindFirstChild('Humanoid') then
+                        return self:defaultGrabValue(allowParts, RaycastResult)
+                    end
+
+                    if typeof(allowHumanoids) == "table" then
+                        if table.find(allowHumanoids, TargetCharacter) then
+                            return TargetCharacter
+                        end
+
+                        if not Player then
+                            TargetCharacter = nil
+                        end
+                    end
+                end
+
+                return if Player then unpack({Player, TargetCharacter}) else TargetCharacter
+            end
+
+            return touch
+        end
+
+        function touchscreen:tap (callback)
+            return self, framework:create(UserInputService.TouchTap, callback)
+        end
+
+        function touchscreen:hold (callback)
+            return self, framework:create(UserInputService.TouchLongPress, callback)
+        end
+
+        function touchscreen:pinch (callback)
+            return self, framework:create(UserInputService.TouchPinch, callback)
+        end
+
+        function touchscreen:drag (callback)
+            return self, framework:create(UserInputService.TouchDrag, callback)
+        end
+
+        function touchscreen:swipe (callback)
+            return self, framework:create(UserInputService.TouchSwipe, callback)
+        end
+
+        return touchscreen
+    end
+
     function proxy:onKeyPressed (keyCode, eventName, callback)
         if not callback and type(eventName) ~= "table" then
             callback = eventName
