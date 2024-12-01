@@ -21,8 +21,14 @@ function module.setPointers (self: module)
     self.pointers.store = self.Store
     self.pointers.session = self.Session
 
-    function self.pointers:localPlayer ()
-        if self:env() == 'client' then
+    function self.pointers:service (name: string)
+        local success, response = pcall(game.GetService, game, name)
+        return if success then response else nil
+    end
+
+    -- client pointers --
+    if self:env() == 'client' then
+        function self.pointers:localPlayer ()
             return game.Players.LocalPlayer
         end
     end

@@ -30,8 +30,7 @@ function module.GetSignal (self, key, instance)
         local service = typeof(nest[1]) == "Instance" and nest[1] or if nest[1]:lower() == "game" then game else nest[1]
 
         if typeof(service) == "string" then
-            local found, result = pcall(game.FindService, game, service)
-            service = if found then result else nil
+            service = self:service(service)
         end
 
         if not service then
