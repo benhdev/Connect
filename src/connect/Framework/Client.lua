@@ -27,24 +27,24 @@ return function (framework, Player)
                 local callback = signal.Callback
 
                 if type(callback) == "function" then
-                    callback(inputObject, gameProcessed)
+                    callback(connection, inputObject, gameProcessed)
                 end
 
                 if table.find({"string", "nil"}, type(callback)) then
                     local Event = framework:event(signal.Event)
-                    Event:dispatch(callback, inputObject, gameProcessed)
+                    Event:dispatch(callback, Event, inputObject, gameProcessed)
                 end
             end
 
             if self.onClickCallback or self.onClickEventName then
                 if table.find({"function", "string", "nil"}, type(self.onClickCallback)) and inputObject.UserInputType == Enum.UserInputType.MouseButton1 then
                     if type(self.onClickCallback) == "function" then
-                        self.onClickCallback(inputObject, gameProcessed)
+                        self.onClickCallback(connection, inputObject, gameProcessed)
                     end
 
                     if table.find({"string", "nil"}, type(self.onClickCallback)) or table.find({"string", "nil"}, type(self.onClickEventName)) then
                         local Event = framework:event(self.onClickEventName)
-                        Event:dispatch(self.onClickCallback, inputObject, gameProcessed)
+                        Event:dispatch(self.onClickCallback, Event, inputObject, gameProcessed)
                     end
                 end
             end
@@ -52,12 +52,12 @@ return function (framework, Player)
             if self.onRightClickCallback or self.onRightClickEventName then
                 if table.find({"function", "string", "nil"}, type(self.onRightClickCallback)) and inputObject.UserInputType == Enum.UserInputType.MouseButton2 then
                     if type(self.onRightClickCallback) == "function" then
-                        self.onRightClickCallback(inputObject, gameProcessed)
+                        self.onRightClickCallback(connection, inputObject, gameProcessed)
                     end
 
                     if table.find({"string", "nil"}, type(self.onRightClickCallback)) or table.find({"string", "nil"}, type(self.onRightClickEventName)) then
                         local Event = framework:event(self.onRightClickEventName)
-                        Event:dispatch(self.onRightClickCallback, inputObject, gameProcessed)
+                        Event:dispatch(self.onRightClickCallback, Event, inputObject, gameProcessed)
                     end
                 end
             end
@@ -73,7 +73,7 @@ return function (framework, Player)
 
     function proxy:mouse (): {}?
         if not UserInputService.MouseEnabled then
-            return nil
+            return setmetatable({}, { __index = function (self) return self end, __call = function (self) return self end })
         end
 
         local mouse = {}
@@ -219,7 +219,7 @@ return function (framework, Player)
 
     function proxy:touchscreen (): {}?
         if not UserInputService.TouchEnabled then
-            return nil
+            return setmetatable({}, { __index = function (self) return self end, __call = function (self) return self end })
         end
 
         local client = self
