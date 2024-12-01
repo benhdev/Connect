@@ -73,7 +73,7 @@ return function (framework, Player)
 
     function proxy:mouse (): {}?
         if not UserInputService.MouseEnabled then
-            return setmetatable({}, { __index = function (self) return self end, __call = function (self) return self end })
+            return setmetatable({ register = function (...) return nil end }, { __index = function (self) return self end, __call = function (self) return self end })
         end
 
         local mouse = {}
@@ -219,7 +219,7 @@ return function (framework, Player)
 
     function proxy:touchscreen (): {}?
         if not UserInputService.TouchEnabled then
-            return setmetatable({}, { __index = function (self) return self end, __call = function (self) return self end })
+            return setmetatable({ register = function (...) return nil end }, { __index = function (self) return self end, __call = function (self) return self end })
         end
 
         local client = self
