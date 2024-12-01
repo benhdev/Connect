@@ -127,7 +127,11 @@ return function (framework, Player)
         end
 
         function mouse:raycast (distance, ignoreGui)
-            if not distance then
+            if not distance or typeof(distance) == "boolean" then
+                if typeof(distance) == "boolean" and ignoreGui ~= false then
+                    ignoreGui = distance
+                end
+                
                 distance = 1000
             end
 
