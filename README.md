@@ -540,7 +540,7 @@ Detecting keyboard input through the client
 ```lua
 local Client = Connect:client()
 
-Client:onKeyPressed(Enum.KeyCode.Q, function (inputObject, gameProcessed)
+Client:onKeyPressed(Enum.KeyCode.Q, function (self, inputObject, gameProcessed)
     if gameProcessed then
         return
     end
@@ -554,7 +554,7 @@ Detecting mouse input through the client
 ```lua
 local Client = Connect:client()
 
-Client:onClick(function (inputObject, gameProcessed)
+Client:onClick(function (self, inputObject, gameProcessed)
     if gameProcessed then
         return
     end
@@ -562,7 +562,7 @@ Client:onClick(function (inputObject, gameProcessed)
     print('Click')
 end)
 
-Client:onRightClick(function (inputObject, gameProcessed)
+Client:onRightClick(function (self, inputObject, gameProcessed)
     if gameProcessed then
         return
     end
@@ -582,7 +582,7 @@ These callback methods also support the use of Events
 > local Client = Connect:client()
 > local ClickEvent = Connect:event('Click')
 >
-> ClickEvent:listen('handle', function (inputObject, gameProcessed)
+> ClickEvent:listen('handle', function (self, inputObject, gameProcessed)
 >     if gameProcessed then
 >         return
 >     end
