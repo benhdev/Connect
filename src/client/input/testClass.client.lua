@@ -6,12 +6,18 @@ local HumanoidClass = Connect:WaitForClass('Humanoid')
 
 local FolderClass = Connect:class('Folder')
 FolderClass.Instance = true
-FolderClass.Name = 'TestFolder'
 
-HumanoidClass.Children = {
-    FolderClass.new(),
-    FolderClass,
+FolderClass.Children = {
+    FolderClass.new()
 }
+
+for i = 1, 9 do
+    local Folder = FolderClass.new()
+    Folder.Name = `Folder{i}`
+
+    table.insert(HumanoidClass.Children, Folder)
+end
+
 
 local Humanoid = HumanoidClass.new()
 Humanoid.Parent = ReplicatedStorage
