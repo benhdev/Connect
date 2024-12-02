@@ -4,6 +4,15 @@ local Connect = require(ReplicatedStorage:WaitForChild('ConnectFramework'))
 
 local HumanoidClass = Connect:WaitForClass('Humanoid')
 
+local FolderClass = Connect:class('Folder')
+FolderClass.Instance = true
+FolderClass.Name = 'TestFolder'
+
+HumanoidClass.Children = {
+    FolderClass.new(),
+    FolderClass,
+}
+
 local Humanoid = HumanoidClass.new()
 Humanoid.Parent = ReplicatedStorage
 

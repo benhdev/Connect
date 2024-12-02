@@ -13,6 +13,10 @@ local function metaclass ()
                 return rawset(self, 'instance', value)
             end
 
+            if key:lower() == "children" then
+                return rawset(self, 'children', value)
+            end
+
             if typeof(value) == "function" then
                 return rawset(self.methods, key, value)
             end
@@ -32,7 +36,7 @@ end
 
 return {
     class = function (framework, name)
-        local class = if register[name] and #register[name] > 0 then table.remove(register[name]) else { name = name, methods = {}, properties = {}, instance = false }
+        local class = if register[name] and #register[name] > 0 then table.remove(register[name]) else { name = name, methods = {}, properties = {}, instance = false, children = {} }
             
         -- add functionality for automatically replicating classes
 
@@ -53,6 +57,24 @@ return {
                             n.instance[k] = v
                         end)
                     end
+
+                    local newchild = {}
+
+                    for k,v in next, n.children do
+                        if typeof(v) == "table" and typeof(v.new) == "function" then
+                            local nv = v.new()
+
+                            if nv and nv.instance then
+                                nv.Parent = if typeof(n.instance) == "Instance" then n.instance else nil
+                            end
+
+                            table.insert(newchild, nv)
+                        else
+                            table.insert(newchild, v)
+                        end
+                    end
+
+                    n.children = newchild
                 end
             end
 
