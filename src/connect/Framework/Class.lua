@@ -5,7 +5,11 @@ local register = {}
 local function metaclass ()
     return {
         __index = function (self, key)
-            return rawget(self.methods, key) or rawget(self.properties, key) or (rawget(self, 'instance') and rawget(self, 'instance')[key])
+            if key:lower() == "children" then
+                return rawget(self, "children")
+            end
+
+            return rawget(self.methods, key) or rawget(self.properties, key) or (typeof(rawget(self, 'instance')) == "Instance" and rawget(self, 'instance')[key])
         end,
 
         __newindex = function (self, key, value)
@@ -61,7 +65,7 @@ return {
                     local newchild = {}
 
                     for k,v in next, n.children do
-                        if typeof(v) == "table" and typeof(v.new) == "function" then
+                        if typeof(v) == "table" and typeof(v.new) == "function" and v.instance and typeof(v.instance) ~= "Instance" then
                             local nv = v.new()
 
                             if nv and nv.instance then
@@ -70,6 +74,10 @@ return {
 
                             table.insert(newchild, nv)
                         else
+                            if v and typeof(v) == "table" and v.instance and typeof(v.instance) == "Instance" and v.instance.Parent == nil then
+                                v.instance.Parent = n.instance
+                            end
+
                             table.insert(newchild, v)
                         end
                     end
