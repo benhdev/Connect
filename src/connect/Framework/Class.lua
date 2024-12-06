@@ -75,7 +75,10 @@ return {
                             table.insert(newchild, nv)
                         else
                             if v and typeof(v) == "table" and v.instance and typeof(v.instance) == "Instance" and v.instance.Parent == nil then
-                                v.instance.Parent = n.instance
+                                local c = v.instance:Clone()
+                                c.Parent = n.instance
+
+                                v.instance:Destroy()
                             end
 
                             table.insert(newchild, v)
