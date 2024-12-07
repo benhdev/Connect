@@ -13,3 +13,6 @@ Humanoid.MaxHealth = 133
 function Humanoid:damage (damage)
     self.Health -= damage
 end
+
+local newHumanoid = Humanoid.new()
+newHumanoid.Parent = ReplicatedStorage
